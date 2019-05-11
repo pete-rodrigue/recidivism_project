@@ -31,5 +31,13 @@ OFNT3CE1.dtypes
 OFNT3CE1['year'] = OFNT3CE1[
     'SENTENCE_EFFECTIVE(BEGIN)_DATE'].str.slice(0, 4).astype('int64')
 OFNT3CE1.head()
-OFNT3CE1 = OFNT3CE1.loc[OFNT3CE1['year'] > 2000, :]
+# OFNT3CE1 = OFNT3CE1.loc[OFNT3CE1['year'] > 2000, :]
+OFNT3CE1 = OFNT3CE1.groupby(
+    'OFFENDER_NC_DOC_ID_NUMBER').filter(
+        lambda x: x['year'].max() > 2000)
 OFNT3CE1.shape
+OFNT3CE1.head()
+OFNT3CE1[['OFFENDER_NC_DOC_ID_NUMBER',
+          'year',
+          'PRIMARY_FELONY/MISDEMEANOR_CD.',
+          'SENTENCE_EFFECTIVE(BEGIN)_DATE']].head()

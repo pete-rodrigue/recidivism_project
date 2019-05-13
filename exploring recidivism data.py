@@ -54,3 +54,15 @@ OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == '0017471',
           'P&P_COMPONENT_STATUS_DATE',
           'MINIMUM_SENTENCE_LENGTH',
           'MAXIMUM_SENTENCE_LENGTH']].head(20)
+
+#
+#
+#
+#
+#
+#
+INMT4BB1 = pd.read_csv(
+    "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\ncdoc_data\\data\\preprocessed\\INMT4BB1.csv")
+INMT4BB1.columns
+INMT4BB1.head(10)
+INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 17471, :].head(20)

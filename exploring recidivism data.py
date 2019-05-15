@@ -85,6 +85,8 @@ INMT4BB1 = INMT4BB1.drop(['INMATE_COMPUTATION_STATUS_FLAG',
 
 INMT4BB1.head(50)
 OFNT3CE1.head()
+INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 34, :].head()
+
 OFNT3CE1.dtypes
 INMT4BB1.dtypes
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].astype('int64')
@@ -105,15 +107,46 @@ OFNT3CE1_subset.shape
 OFNT3CE1_subset['OFFENDER_NC_DOC_ID_NUMBER'].dtypes
 INMT4BB1_subset['INMATE_DOC_NUMBER'].dtypes
 merged = OFNT3CE1_subset.merge(INMT4BB1_subset,
-                       left_on='OFFENDER_NC_DOC_ID_NUMBER',
-                       right_on='INMATE_DOC_NUMBER',
+                       left_on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
+                       right_on=['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX'],
                        how='right')
 
+merged.head()
+merged.loc[merged['INMATE_DOC_NUMBER'] == 34, :].head()
 
+first_release = merged.sort_values("ACTUAL_SENTENCE_END_DATE").groupby("INMATE_DOC_NUMBER", as_index=False)['ACTUAL_SENTENCE_END_DATE'].first()
+
+merged = merged.merge(first_release,
+                      on='INMATE_DOC_NUMBER',
+                      how='left')
+
+merged = merged.rename(columns={"ACTUAL_SENTENCE_END_DATE_x": "ACTUAL_SENTENCE_END_DATE",
+                       "ACTUAL_SENTENCE_END_DATE_y": "first_release_date"})
 merged.head()
 
+merged.dtypes
+merged.columns
+merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
+merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
+merged['first_release_date'] = pd.to_datetime(merged['first_release_date'], errors='coerce')
+merged['ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(merged['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
+merged.shape
+merged = merged[merged['first_release_date'].between('1980-01-01', '2019-01-31')]
+# merged[merged['ACTUAL_SENTENCE_END_DATE'].between('1980-01-01', '2019-01-31')].shape
+# merged[merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].between('1980-01-01', '2019-01-31')].shape
+merged = merged[merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].between('1980-01-01', '2019-01-31')]
+# merged[merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].between('1980-01-01', '2019-01-31')].shape
+merged['first_release_date'].dtypes
+merged['ACTUAL_SENTENCE_END_DATE'].dtypes
+merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].dtypes
+merged['ACTUAL_SENTENCE_END_DATE'].head()
+merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
+merged['elapsed_time'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
+
+merged.tail()
 
 
+merged_train = merged.loc[merged['']]
 
 
 

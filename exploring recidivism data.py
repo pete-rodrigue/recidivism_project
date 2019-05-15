@@ -140,10 +140,12 @@ merged['first_release_date'].dtypes
 merged['ACTUAL_SENTENCE_END_DATE'].dtypes
 merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].dtypes
 merged['ACTUAL_SENTENCE_END_DATE'].head()
-merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
-merged['elapsed_time'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
+merged['time_elapsed'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
+merged['outcome'] = 0
+merged.loc[(merged['time_elapsed'] >= '0 days') &( merged['time_elapsed'] <= '730 days'), 'outcome'] = 1
 
-merged.tail()
+
+merged.head()
 
 
 merged_train = merged.loc[merged['']]

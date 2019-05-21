@@ -103,6 +103,8 @@ INMT4BB1_subset.shape
 OFNT3CE1_subset = OFNT3CE1.loc[OFNT3CE1['SENTENCE_COMPONENT_NUMBER'] == 1, :]
 OFNT3CE1_subset.shape
 
+OFNT3CE1_subset.loc[OFNT3CE1_subset['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
+
 
 OFNT3CE1_subset['OFFENDER_NC_DOC_ID_NUMBER'].dtypes
 INMT4BB1_subset['INMATE_DOC_NUMBER'].dtypes
@@ -146,6 +148,14 @@ merged.loc[(merged['time_elapsed'] >= '0 days') &( merged['time_elapsed'] <= '73
 
 
 merged.head()
+
+merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
+
+merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114,
+                      ['DATE_OFFENSE_COMMITTED_-_BEGIN',
+                      'DATE_OFFENSE_COMMITTED_-_END',
+                      'SENTENCE_BEGIN_DATE_(FOR_MAX)',
+                      'ACTUAL_SENTENCE_END_DATE']]
 
 
 merged_train = merged.loc[merged['']]

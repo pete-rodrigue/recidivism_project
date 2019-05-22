@@ -93,6 +93,37 @@ INMT4BB1['INMATE_DOC_NUMBER'].unique().shape
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].loc[
         OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(

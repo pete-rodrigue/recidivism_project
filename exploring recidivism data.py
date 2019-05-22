@@ -5,7 +5,12 @@
 import pandas as pd
 import numpy as np
 
-# Import offenders dataset
+#
+#  OFNT3CE1
+#
+#
+#
+#
 OFNT3CE1 = pd.read_csv(
     "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\ncdoc_data\\data\\preprocessed\\OFNT3CE1.csv",
     dtype={'OFFENDER_NC_DOC_ID_NUMBER': str,
@@ -21,44 +26,15 @@ pd.options.display.max_columns = 100  # Set the max number of col to display
 # Create a variable that indicates felony offenses
 OFNT3CE1['has_felony'] = np.where(
     OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
-# OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER']=='0000006',].head(50)
 # Only keep people that have ever had a felony offense
 OFNT3CE1 = OFNT3CE1.groupby(
     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['has_felony'].max() == 1)
 
 OFNT3CE1.shape  # Notice we have fewer rows now
-# OFNT3CE1.head()
-# OFNT3CE1['SENTENCE_EFFECTIVE(BEGIN)_DATE'].head(50)
-# OFNT3CE1.dtypes
 
-# Create a year variable with the year of the start of their sentence
-# OFNT3CE1['year'] = OFNT3CE1[
-#     'SENTENCE_EFFECTIVE(BEGIN)_DATE'].str.slice(0, 4).astype('int64')
-# OFNT3CE1.head()
-# # OFNT3CE1 = OFNT3CE1.loc[OFNT3CE1['year'] > 2000, :]
-# OFNT3CE1 = OFNT3CE1.groupby(
-#     'OFFENDER_NC_DOC_ID_NUMBER').filter(
-#         lambda x: x['year'].max() > 2000)
-# OFNT3CE1.shape
-# OFNT3CE1.head()
-# OFNT3CE1[['OFFENDER_NC_DOC_ID_NUMBER',
-#           'year',
-#           'PRIMARY_FELONY/MISDEMEANOR_CD.',
-#           'SENTENCE_EFFECTIVE(BEGIN)_DATE',
-#           'P&P_COMPONENT_STATUS_DATE',
-#           'MINIMUM_SENTENCE_LENGTH',
-#           'MAXIMUM_SENTENCE_LENGTH']].head(10)
+OFNT3CE1['clean_SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(
+        OFNT3CE1['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
 
-# OFNT3CE1.columns
-# OFNT3CE1.head(30)
-# OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == '0017471',
-#                      ['OFFENDER_NC_DOC_ID_NUMBER',
-#                       'COMMITMENT_PREFIX',
-#                       'year', 'DATE_OFFENSE_COMMITTED_-_BEGIN',
-#                       'PRIMARY_FELONY/MISDEMEANOR_CD.',
-#                       'SENTENCE_EFFECTIVE(BEGIN)_DATE',
-#                       'SENTENCE_COMPONENT_NUMBER',
-#                       'PRIOR_RECORD_LEVEL_CODE']].head(20)
 
 # dropping features we don't want to use:
 OFNT3CE1 = OFNT3CE1.drop(['NC_GENERAL_STATUTE_NUMBER',
@@ -69,56 +45,66 @@ OFNT3CE1 = OFNT3CE1.drop(['NC_GENERAL_STATUTE_NUMBER',
                           'ICC_JAIL_CREDITS_(IN_DAYS)'], axis=1)
 
 #
+#  INMT4BB1
 #
 #
-# NOTE TODO: WE WANT TO MERGE ON THE DOC NUMBER AND THE COMMITMENT_PREFIX
-# MAYBE ALSO THE COMPONENT NUMBER
+#
 #
 INMT4BB1 = pd.read_csv(
     "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\" +
     "ncdoc_data\\data\\preprocessed\\INMT4BB1.csv")
-# INMT4BB1.columns
-# INMT4BB1.head(10)
-# INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 670272, :].head(20)
-# INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 17471, :].head(20)
-# INMT4BB1.head(50)
-# INMT4BB1.PAROLE_SUPERVISION_BEGIN_DATE.unique()
+
 # dropping features we don't want to use:
 INMT4BB1 = INMT4BB1.drop(['INMATE_COMPUTATION_STATUS_FLAG',
-                          'PROJECTED_RELEASE_DATE_(PRD)',
                           'PAROLE_DISCHARGE_DATE',
                           'PAROLE_SUPERVISION_BEGIN_DATE'], axis=1)
 
-# INMT4BB1.head(10)
-# OFNT3CE1.sort_values(['OFFENDER_NC_DOC_ID_NUMBER']).head(10)
-# INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 34, :].head()
-OFNT3CE1.dtypes
-INMT4BB1.dtypes
-# OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].astype('int64')
+
 INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(
             INMT4BB1['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
-# INMT4BB1[INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True ].head(10)
-# INMT4BB1 = INMT4BB1[ INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == False ]
-INMT4BB1_subset = INMT4BB1.loc[
-    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] >= '2000-01-01') |
-    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
-INMT4BB1_subset = INMT4BB1_subset.loc[
-        (INMT4BB1_subset['clean_ACTUAL_SENTENCE_END_DATE'] < '2006-01-01') |
-        (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
+INMT4BB1['clean_projected_release_date'] = pd.to_datetime(
+            INMT4BB1['PROJECTED_RELEASE_DATE_(PRD)'], errors='coerce')
+INMT4BB1['clean_SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(
+        INMT4BB1['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
 
-INMT4BB1_subset.shape
+OFNT3CE1.dtypes
+INMT4BB1.dtypes
+
+INMT4BB1['release_after_2000'] = np.where(
+    (INMT4BB1['clean_projected_release_date'] > '1999-12-31') |
+    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] > '1999-12-31'), 1, 0)
+INMT4BB1['release_before_2006'] = np.where(
+    (INMT4BB1['clean_projected_release_date'] < '2006-01-01') |
+    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] < '2006-01-01'), 1, 0)
+INMT4BB1['in_time_window'] = 0
+INMT4BB1.loc[(INMT4BB1['release_after_2000'] > 0) &
+             (INMT4BB1['release_before_2006'] > 0), 'in_time_window'] = 1
+
+# INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
+# Only keep people with releases in our time window
+INMT4BB1 = INMT4BB1.groupby(
+    'INMATE_DOC_NUMBER').filter(lambda x: x['in_time_window'].max() == 1)
+
+INMT4BB1.tail(10)
+
+# Number of remaining people
+INMT4BB1['INMATE_DOC_NUMBER'].unique().shape
+
+
+
+
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].loc[
         OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
         OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
 OFNT3CE1.dtypes
-INMT4BB1_subset.dtypes
+INMT4BB1.dtypes
 
 # Look at person 8
-INMT4BB1_subset.head(1)
+INMT4BB1.head(10)
 # Look at person 8
 OFNT3CE1[15:21]
-merged = OFNT3CE1.merge(INMT4BB1_subset,
+merged = OFNT3CE1.merge(INMT4BB1,
                         left_on=['OFFENDER_NC_DOC_ID_NUMBER',
                                  'COMMITMENT_PREFIX',
                                  'SENTENCE_COMPONENT_NUMBER'],
@@ -126,6 +112,11 @@ merged = OFNT3CE1.merge(INMT4BB1_subset,
                                   'INMATE_COMMITMENT_PREFIX',
                                   'INMATE_SENTENCE_COMPONENT'],
                         how='left')
+
+merged.dtypes
+merged.loc[merged['PROJECTED_RELEASE_DATE_(PRD)'] != merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'],
+    ['PROJECTED_RELEASE_DATE_(PRD)'], ].head(20)
+
 
 # Look at person 8
 merged[11:30].head(10)
@@ -135,7 +126,7 @@ merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 34, :]
 # How many rows have a release date?
 merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == False, :].shape
 merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE_x'].isnull() == False, :].head()
-INMT4BB1_subset.shape
+INMT4BB1.shape
 # Note we loose some observations
 merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
 
@@ -170,10 +161,7 @@ merged = merged.rename(columns={"clean_ACTUAL_SENTENCE_END_DATE_x":
 merged.head()
 
 merged.dtypes
-merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(
-        merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
-merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(
-        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
+
 
 # Should we use SENTENCE_BEGIN_DATE_(FOR_MAX) or SENTENCE_EFFECTIVE(BEGIN)_DATE
 # here?
@@ -219,6 +207,20 @@ merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
 
 merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114,
                       ['DATE_OFFENSE_COMMITTED_-_BEGIN',
+                      'DATE_OFFENSE_COMMITTED_-_END',
+                      'OFFENDER_NC_DOC_ID_NUMBER',
+                      'SENTENCE_BEGIN_DATE_(FOR_MAX)',
+                      'clean_ACTUAL_SENTENCE_END_DATE',
+                      'first_release_date',
+                      'time_elapsed',
+                      'outcome']]
+
+
+INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
+OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 62, :]
+merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 62,
+                      ['PROJECTED_RELEASE_DATE_(PRD)',
+                      'DATE_OFFENSE_COMMITTED_-_BEGIN',
                       'DATE_OFFENSE_COMMITTED_-_END',
                       'OFFENDER_NC_DOC_ID_NUMBER',
                       'SENTENCE_BEGIN_DATE_(FOR_MAX)',

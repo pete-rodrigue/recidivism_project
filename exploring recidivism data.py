@@ -71,11 +71,12 @@ OFNT3CE1 = OFNT3CE1.drop(['NC_GENERAL_STATUTE_NUMBER',
 #
 #
 #
-# NOTE TO SELF: WE WANT TO MERGE ON THE DOC NUMBER AND THE COMMITMENT_PREFIX
+# NOTE TODO: WE WANT TO MERGE ON THE DOC NUMBER AND THE COMMITMENT_PREFIX
 # MAYBE ALSO THE COMPONENT NUMBER
 #
 INMT4BB1 = pd.read_csv(
-    "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\ncdoc_data\\data\\preprocessed\\INMT4BB1.csv")
+    "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\" +
+    "ncdoc_data\\data\\preprocessed\\INMT4BB1.csv")
 # INMT4BB1.columns
 # INMT4BB1.head(10)
 # INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 670272, :].head(20)
@@ -94,71 +95,155 @@ INMT4BB1 = INMT4BB1.drop(['INMATE_COMPUTATION_STATUS_FLAG',
 OFNT3CE1.dtypes
 INMT4BB1.dtypes
 # OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].astype('int64')
-INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(INMT4BB1['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
+INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(
+            INMT4BB1['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
 # INMT4BB1[INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True ].head(10)
 # INMT4BB1 = INMT4BB1[ INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == False ]
-INMT4BB1_subset = INMT4BB1.loc[(INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] >= '2000-01-01') | (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
-INMT4BB1_subset = INMT4BB1_subset.loc[(INMT4BB1_subset['clean_ACTUAL_SENTENCE_END_DATE'] < '2006-01-01') | (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
+INMT4BB1_subset = INMT4BB1.loc[
+    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] >= '2000-01-01') |
+    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
+INMT4BB1_subset = INMT4BB1_subset.loc[
+        (INMT4BB1_subset['clean_ACTUAL_SENTENCE_END_DATE'] < '2006-01-01') |
+        (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == True), :]
 
 INMT4BB1_subset.shape
-
-OFNT3CE1.applymap(np.isreal)
-OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].astype('int')
+OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].loc[
+        OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
+OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
+        OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
 OFNT3CE1.dtypes
 INMT4BB1_subset.dtypes
 
+# Look at person 8
+INMT4BB1_subset.head(1)
+# Look at person 8
+OFNT3CE1[15:21]
+merged = OFNT3CE1.merge(INMT4BB1_subset,
+                        left_on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                 'COMMITMENT_PREFIX',
+                                 'SENTENCE_COMPONENT_NUMBER'],
+                        right_on=['INMATE_DOC_NUMBER',
+                                  'INMATE_COMMITMENT_PREFIX',
+                                  'INMATE_SENTENCE_COMPONENT'],
+                        how='left')
 
-merged = OFNT3CE1_subset.merge(INMT4BB1_subset,
-                       left_on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
-                       right_on=['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX'],
-                       how='right')
+# Look at person 8
+merged[11:30].head(10)
+merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 8, :]
+merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 34, :]
 
-merged.head()
-merged.loc[merged['INMATE_DOC_NUMBER'] == 34, :].head()
+# How many rows have a release date?
+merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == False, :].shape
+merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE_x'].isnull() == False, :].head()
+INMT4BB1_subset.shape
+# Note we loose some observations
+merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
 
-first_release = merged.sort_values("ACTUAL_SENTENCE_END_DATE").groupby("INMATE_DOC_NUMBER", as_index=False)['ACTUAL_SENTENCE_END_DATE'].first()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+first_release = merged.sort_values(
+    "clean_ACTUAL_SENTENCE_END_DATE").groupby(
+    "OFFENDER_NC_DOC_ID_NUMBER", as_index=False)[
+    'clean_ACTUAL_SENTENCE_END_DATE'].first()
 
 merged = merged.merge(first_release,
-                      on='INMATE_DOC_NUMBER',
+                      on='OFFENDER_NC_DOC_ID_NUMBER',
                       how='left')
+merged.head()
 
-merged = merged.rename(columns={"ACTUAL_SENTENCE_END_DATE_x": "ACTUAL_SENTENCE_END_DATE",
-                       "ACTUAL_SENTENCE_END_DATE_y": "first_release_date"})
+merged = merged.rename(columns={"clean_ACTUAL_SENTENCE_END_DATE_x":
+                                "clean_ACTUAL_SENTENCE_END_DATE",
+                                "clean_ACTUAL_SENTENCE_END_DATE_y":
+                                "first_release_date"})
 merged.head()
 
 merged.dtypes
-merged.columns
-merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
-merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
-merged['first_release_date'] = pd.to_datetime(merged['first_release_date'], errors='coerce')
-merged['ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(merged['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
+merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(
+        merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
+merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(
+        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
+
+# Should we use SENTENCE_BEGIN_DATE_(FOR_MAX) or SENTENCE_EFFECTIVE(BEGIN)_DATE
+# here?
 merged.shape
-merged = merged[merged['first_release_date'].between('1980-01-01', '2019-01-31')]
-# merged[merged['ACTUAL_SENTENCE_END_DATE'].between('1980-01-01', '2019-01-31')].shape
-# merged[merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].between('1980-01-01', '2019-01-31')].shape
-merged = merged[merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].between('1980-01-01', '2019-01-31')]
-# merged[merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].between('1980-01-01', '2019-01-31')].shape
-merged['first_release_date'].dtypes
-merged['ACTUAL_SENTENCE_END_DATE'].dtypes
-merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].dtypes
-merged['ACTUAL_SENTENCE_END_DATE'].head()
-merged['time_elapsed'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - merged['first_release_date']
+merged.loc[merged[
+        'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
+merged.loc[merged[
+        'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].head()
+
+
+
+# Find the people who have been to jail that we want to keep
+merged.loc[merged['INMATE_DOC_NUMBER'].isnull() == False, :].head()
+ids_to_keep = merged['INMATE_DOC_NUMBER'].unique()
+ids_to_keep = ids_to_keep[~np.isnan(ids_to_keep)]
+ids_to_keep.shape
+merged = merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'].isin(
+            list(ids_to_keep)), :]
+merged.shape
+merged.loc[merged['INMATE_DOC_NUMBER'].isnull() == False, :].shape
+merged.head(12)
+merged.head(50)
+merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
+merged.loc[merged['first_release_date'].isnull()==False, :].groupby('OFFENDER_NC_DOC_ID_NUMBER').count()
+
+merged['time_elapsed'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - \
+                         merged['first_release_date']
 merged['outcome'] = 0
-merged.loc[(merged['time_elapsed'] >= '0 days') &( merged['time_elapsed'] <= '730 days'), 'outcome'] = 1
+merged.loc[(merged['time_elapsed'] >= '0 days') &
+           (merged['time_elapsed'] <= '730 days'), 'outcome'] = 1
+
+merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
+merged.head(11)
+
+# Do we want to only keep people with real values for
+# clean_ACTUAL_SENTENCE_END_DATE?
 
 
-merged.head()
-
+# Watch out for cases like this where we have consecutive sentences
 merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
 
 merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114,
                       ['DATE_OFFENSE_COMMITTED_-_BEGIN',
                       'DATE_OFFENSE_COMMITTED_-_END',
+                      'OFFENDER_NC_DOC_ID_NUMBER',
                       'SENTENCE_BEGIN_DATE_(FOR_MAX)',
-                      'ACTUAL_SENTENCE_END_DATE']]
+                      'clean_ACTUAL_SENTENCE_END_DATE',
+                      'first_release_date',
+                      'time_elapsed',
+                      'outcome']]
 
 
-merged_train = merged.loc[merged['']]
+# NOTE TODO: aggregate variables and collapse to the most recent incarceration
+# Eventually we will only want to keep the row with a
+# clean_ACTUAL_SENTENCE_END_DATE that matches first_release_date
+# That will require spreading outcome within each person.
+merged.groupby('OFFENDER_NC_DOC_ID_NUMBER')['outcome'].max()
+
+
+
+
+
+
+
+
+
+
+
 
 
 

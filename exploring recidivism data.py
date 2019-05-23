@@ -4,6 +4,7 @@
 # Import packages
 import pandas as pd
 import numpy as np
+import matplotlib as plt
 
 #
 #  OFNT3CE1
@@ -67,15 +68,22 @@ INMT4BB1['clean_projected_release_date'] = pd.to_datetime(
 INMT4BB1['clean_SENTENCE_BEGIN_DATE_(FOR_MAX)'] = pd.to_datetime(
         INMT4BB1['SENTENCE_BEGIN_DATE_(FOR_MAX)'], errors='coerce')
 
-OFNT3CE1.dtypes
-INMT4BB1.dtypes
+INMT4BB1['release_date_with_imputation'] = INMT4BB1[
+                            'clean_ACTUAL_SENTENCE_END_DATE']
+
+INMT4BB1['release_date_with_imputation'] = np.where(
+    (INMT4BB1['release_date_with_imputation'].isnull()),
+    INMT4BB1['clean_projected_release_date'],
+    INMT4BB1['release_date_with_imputation'])
+
+INMT4BB1['imputed_release_date_flag'] = np.where(
+        INMT4BB1['clean_projected_release_date'].notnull() &
+        INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull(), 1, 0)
 
 INMT4BB1['release_after_2000'] = np.where(
-    (INMT4BB1['clean_projected_release_date'] > '1999-12-31') |
-    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] > '1999-12-31'), 1, 0)
+    (INMT4BB1['release_date_with_imputation'] > '1999-12-31'), 1, 0)
 INMT4BB1['release_before_2006'] = np.where(
-    (INMT4BB1['clean_projected_release_date'] < '2006-01-01') |
-    (INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] < '2006-01-01'), 1, 0)
+    (INMT4BB1['release_date_with_imputation'] < '2006-01-01'), 1, 0)
 INMT4BB1['in_time_window'] = 0
 INMT4BB1.loc[(INMT4BB1['release_after_2000'] > 0) &
              (INMT4BB1['release_before_2006'] > 0), 'in_time_window'] = 1
@@ -91,50 +99,12 @@ INMT4BB1.tail(10)
 INMT4BB1['INMATE_DOC_NUMBER'].unique().shape
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Making one person's id a number so we can make them all numeric
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].loc[
         OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
 OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
         OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
-OFNT3CE1.dtypes
-INMT4BB1.dtypes
-
-# Look at person 8
-INMT4BB1.head(10)
-# Look at person 8
-OFNT3CE1[15:21]
+# OFNT3CE1.dtypes
 merged = OFNT3CE1.merge(INMT4BB1,
                         left_on=['OFFENDER_NC_DOC_ID_NUMBER',
                                  'COMMITMENT_PREFIX',
@@ -142,24 +112,74 @@ merged = OFNT3CE1.merge(INMT4BB1,
                         right_on=['INMATE_DOC_NUMBER',
                                   'INMATE_COMMITMENT_PREFIX',
                                   'INMATE_SENTENCE_COMPONENT'],
-                        how='left')
-
-merged.dtypes
-merged.loc[merged['PROJECTED_RELEASE_DATE_(PRD)'] != merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'],
-    ['PROJECTED_RELEASE_DATE_(PRD)'], ].head(20)
+                        how='outer')
 
 
-# Look at person 8
-merged[11:30].head(10)
-merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 8, :]
-merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 34, :]
+# Find the people who have been to jail that we want to keep
+ids_to_keep = merged['INMATE_DOC_NUMBER'].unique()
+ids_to_keep = ids_to_keep[~np.isnan(ids_to_keep)]
+merged = merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'].isin(
+            list(ids_to_keep)), : ]
 
-# How many rows have a release date?
-merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE'].isnull() == False, :].shape
-merged.loc[merged['clean_ACTUAL_SENTENCE_END_DATE_x'].isnull() == False, :].head()
-INMT4BB1.shape
-# Note we loose some observations
-merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
+merged.head(17)
+
+# create a new data frame that has the total number of incidents with the law
+# for each person (guilty or innocent, went to jail or not)
+total_number_of_counts = merged.groupby('OFFENDER_NC_DOC_ID_NUMBER').count(
+        )['COMMITMENT_PREFIX'].to_frame().reset_index(
+        ).rename(columns={'COMMITMENT_PREFIX': 'total_num_counts'})
+total_number_of_counts.head()
+
+# create a new data frame that has the total number of incarceral events
+total_number_of_incarcerations = merged.groupby(
+    ['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']).count(
+    ).reset_index(
+    )[['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']].groupby(
+            'INMATE_DOC_NUMBER').count().reset_index().rename(
+            columns={
+            'INMATE_COMMITMENT_PREFIX': 'total_number_of_incarcerations'})
+
+total_number_of_incarcerations.head()
+total_number_of_incarcerations.describe()
+myhist = total_number_of_incarcerations['total_number_of_incarcerations'].hist()
+total_number_of_incarcerations['total_number_of_incarcerations'].quantile(.99)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -189,9 +209,7 @@ merged = merged.rename(columns={"clean_ACTUAL_SENTENCE_END_DATE_x":
                                 "clean_ACTUAL_SENTENCE_END_DATE",
                                 "clean_ACTUAL_SENTENCE_END_DATE_y":
                                 "first_release_date"})
-merged.head()
 
-merged.dtypes
 
 
 # Should we use SENTENCE_BEGIN_DATE_(FOR_MAX) or SENTENCE_EFFECTIVE(BEGIN)_DATE
@@ -206,17 +224,12 @@ merged.loc[merged[
 
 
 
-# Find the people who have been to jail that we want to keep
-merged.loc[merged['INMATE_DOC_NUMBER'].isnull() == False, :].head()
-ids_to_keep = merged['INMATE_DOC_NUMBER'].unique()
-ids_to_keep = ids_to_keep[~np.isnan(ids_to_keep)]
-ids_to_keep.shape
-merged = merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'].isin(
-            list(ids_to_keep)), :]
-merged.shape
-merged.loc[merged['INMATE_DOC_NUMBER'].isnull() == False, :].shape
-merged.head(12)
-merged.head(50)
+
+
+
+
+
+
 merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
 merged.loc[merged['first_release_date'].isnull()==False, :].groupby('OFFENDER_NC_DOC_ID_NUMBER').count()
 

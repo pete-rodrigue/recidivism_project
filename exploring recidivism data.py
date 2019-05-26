@@ -9,13 +9,13 @@ pd.options.display.max_columns = 100
 
 ##Steps
 #figure out sentence begin date
-#figure out how to calculate the difference since the last release 
+#figure out how to calculate the difference since the last release
 
 #
 #  OFNT3CE1
 #
-offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
+offender_filepath = "/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+inmate_filepath = "/ncdoc_data/data/preprocessed/INMT4BB1.csv"
 begin_date = '2009-12-31'
 end_date = '2019-05-01'
 ################################################################################
@@ -238,193 +238,204 @@ def create_df_for_ml_pipeline(merged, begin_date, end_date):
                             on=['OFFENDER_NC_DOC_ID_NUMBER',
                                      'COMMITMENT_PREFIX'],
                             how='outer')
-    crime_w_release_date = crime_w_release_date.drop(columns=['num_of_felonies'], axis=1)
+    # crime_w_release_date = crime_w_release_date.drop(columns=['num_of_felonies'], axis=1)
     crime_w_release_date.head(5)
     #create a variable of time since last release
-    diff_in_dates = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[].diff(periods=-1, axis=0)
+    crime_w_release_date['release_date_final'] = pd.to_datetime(crime_w_release_date['crime_release_data_w_imputation'])
+    diff_in_dates = np.where(crime_w_release_date['num_of_felonies'] > 1, (crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])['release_date_final'].diff(periods=-1)), 0)
     diff_in_dates
-
-    #drop
-
-crime.head()
-# ADD FEATURES
-# create a new data frame that has the total number of incidents with the law
-# for each person (guilty or innocent, went to jail or not)
-total_number_of_counts = merged.groupby('OFFENDER_NC_DOC_ID_NUMBER').count(
-        )['COMMITMENT_PREFIX'].to_frame().reset_index(
-        ).rename(columns={'COMMITMENT_PREFIX': 'total_num_counts'})
-total_number_of_counts.head()
-
-# create a new data frame that has the total number of incarceral events
-total_number_of_incarcerations = merged.groupby(
-    ['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']).count(
-    ).reset_index(
-    )[['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']].groupby(
-            'INMATE_DOC_NUMBER').count().reset_index().rename(
-            columns={
-            'INMATE_COMMITMENT_PREFIX': 'total_number_of_incarcerations'})
-
-total_number_of_incarcerations.head()
-total_number_of_incarcerations.describe()
-myhist = total_number_of_incarcerations['total_number_of_incarcerations'].hist()
-total_number_of_incarcerations['total_number_of_incarcerations'].quantile(.99)
-merged.head()
-# did they recidivate within 2 years of last arrest?
-#flag earliest time released in the given time period
-#time between each release and the release before it
-#if there is only one release, then recidivate dummy = 0
-#if there is more than one release, and less than 24 months earlier, then recidivate
-#dummy is 1.
-
-merged.groupby('INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX')
-
-'release_date_with_imputation'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-first_release = merged.sort_values(
-    "clean_ACTUAL_SENTENCE_END_DATE").groupby(
-    "OFFENDER_NC_DOC_ID_NUMBER", as_index=False)[
-    'clean_ACTUAL_SENTENCE_END_DATE'].first()
-
-merged = merged.merge(first_release,
-                      on='OFFENDER_NC_DOC_ID_NUMBER',
-                      how='left')
-merged.head()
-
-merged = merged.rename(columns={"clean_ACTUAL_SENTENCE_END_DATE_x":
-                                "clean_ACTUAL_SENTENCE_END_DATE",
-                                "clean_ACTUAL_SENTENCE_END_DATE_y":
-                                "first_release_date"})
-
-
-
-# Should we use SENTENCE_BEGIN_DATE_(FOR_MAX) or SENTENCE_EFFECTIVE(BEGIN)_DATE
-# here?
-merged.shape
-merged.loc[merged[
-        'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
-merged.loc[merged[
-        'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-        merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], : ][['OFFENDER_NC_DOC_ID_NUMBER','SENTENCE_BEGIN_DATE_(FOR_MAX)', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']]
-
-
-
-
-
-
-
-
-
-merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
-merged.loc[merged['first_release_date'].isnull()==False, :].groupby('OFFENDER_NC_DOC_ID_NUMBER').count()
-
-merged['time_elapsed'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - \
-                         merged['first_release_date']
-merged['outcome'] = 0
-merged.loc[(merged['time_elapsed'] >= '0 days') &
-           (merged['time_elapsed'] <= '730 days'), 'outcome'] = 1
-
-merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
-merged.head(11)
-
-# Do we want to only keep people with real values for
-# clean_ACTUAL_SENTENCE_END_DATE?
-
-
-# Watch out for cases like this where we have consecutive sentences
-merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
-
-merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114,
-                      ['DATE_OFFENSE_COMMITTED_-_BEGIN',
-                      'DATE_OFFENSE_COMMITTED_-_END',
-                      'OFFENDER_NC_DOC_ID_NUMBER',
-                      'SENTENCE_BEGIN_DATE_(FOR_MAX)',
-                      'clean_ACTUAL_SENTENCE_END_DATE',
-                      'first_release_date',
-                      'time_elapsed',
-                      'outcome']]
-
-
-INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
-OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 62, :]
-merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 62,
-                      ['PROJECTED_RELEASE_DATE_(PRD)',
-                      'DATE_OFFENSE_COMMITTED_-_BEGIN',
-                      'DATE_OFFENSE_COMMITTED_-_END',
-                      'OFFENDER_NC_DOC_ID_NUMBER',
-                      'SENTENCE_BEGIN_DATE_(FOR_MAX)',
-                      'clean_ACTUAL_SENTENCE_END_DATE',
-                      'first_release_date',
-                      'time_elapsed',
-                      'outcome']]
-
-
-# NOTE TODO: aggregate variables and collapse to the most recent incarceration
-# Eventually we will only want to keep the row with a
-# clean_ACTUAL_SENTENCE_END_DATE that matches first_release_date
-# That will require spreading outcome within each person.
-merged.groupby('OFFENDER_NC_DOC_ID_NUMBER')['outcome'].max()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-OFNT9BE1 = pd.read_csv(
-    "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\ncdoc_data\\data\\preprocessed\\OFNT9BE1.csv")
+    test = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])['release_date_final'].diff().reset_index()
+    test
+    # test.describe()
+    # time_since_last_release =
+#
+#
+#
+#
+# #     diff_in_dates = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[].diff(periods=-1, axis=0)
+# #     diff_in_dates
+# #
+# #     #drop
+# #
+# # crime.head()
+# # ADD FEATURES
+# # create a new data frame that has the total number of incidents with the law
+# # for each person (guilty or innocent, went to jail or not)
+# total_number_of_counts = merged.groupby('OFFENDER_NC_DOC_ID_NUMBER').count(
+#         )['COMMITMENT_PREFIX'].to_frame().reset_index(
+#         ).rename(columns={'COMMITMENT_PREFIX': 'total_num_counts'})
+# total_number_of_counts.head()
+#
+# # create a new data frame that has the total number of incarceral events
+# total_number_of_incarcerations = merged.groupby(
+#     ['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']).count(
+#     ).reset_index(
+#     )[['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']].groupby(
+#             'INMATE_DOC_NUMBER').count().reset_index().rename(
+#             columns={
+#             'INMATE_COMMITMENT_PREFIX': 'total_number_of_incarcerations'})
+#
+# total_number_of_incarcerations.head()
+# total_number_of_incarcerations.describe()
+# myhist = total_number_of_incarcerations['total_number_of_incarcerations'].hist()
+# total_number_of_incarcerations['total_number_of_incarcerations'].quantile(.99)
+# merged.head()
+# # did they recidivate within 2 years of last arrest?
+# #flag earliest time released in the given time period
+# #time between each release and the release before it
+# #if there is only one release, then recidivate dummy = 0
+# #if there is more than one release, and less than 24 months earlier, then recidivate
+# #dummy is 1.
+#
+# merged.groupby('INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX')
+#
+# 'release_date_with_imputation'
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# first_release = merged.sort_values(
+#     "clean_ACTUAL_SENTENCE_END_DATE").groupby(
+#     "OFFENDER_NC_DOC_ID_NUMBER", as_index=False)[
+#     'clean_ACTUAL_SENTENCE_END_DATE'].first()
+#
+# merged = merged.merge(first_release,
+#                       on='OFFENDER_NC_DOC_ID_NUMBER',
+#                       how='left')
+# merged.head()
+#
+# merged = merged.rename(columns={"clean_ACTUAL_SENTENCE_END_DATE_x":
+#                                 "clean_ACTUAL_SENTENCE_END_DATE",
+#                                 "clean_ACTUAL_SENTENCE_END_DATE_y":
+#                                 "first_release_date"})
+#
+#
+#
+# # Should we use SENTENCE_BEGIN_DATE_(FOR_MAX) or SENTENCE_EFFECTIVE(BEGIN)_DATE
+# # here?
+# merged.shape
+# merged.loc[merged[
+#         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+#         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
+# merged.loc[merged[
+#         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+#         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], : ][['OFFENDER_NC_DOC_ID_NUMBER','SENTENCE_BEGIN_DATE_(FOR_MAX)', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']]
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
+# merged.loc[merged['first_release_date'].isnull()==False, :].groupby('OFFENDER_NC_DOC_ID_NUMBER').count()
+#
+# merged['time_elapsed'] = merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'] - \
+#                          merged['first_release_date']
+# merged['outcome'] = 0
+# merged.loc[(merged['time_elapsed'] >= '0 days') &
+#            (merged['time_elapsed'] <= '730 days'), 'outcome'] = 1
+#
+# merged.loc[merged['first_release_date'].isnull()==False, :].head(10)
+# merged.head(11)
+#
+# # Do we want to only keep people with real values for
+# # clean_ACTUAL_SENTENCE_END_DATE?
+#
+#
+# # Watch out for cases like this where we have consecutive sentences
+# merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114, :]
+#
+# merged.loc[ merged['OFFENDER_NC_DOC_ID_NUMBER'] == 114,
+#                       ['DATE_OFFENSE_COMMITTED_-_BEGIN',
+#                       'DATE_OFFENSE_COMMITTED_-_END',
+#                       'OFFENDER_NC_DOC_ID_NUMBER',
+#                       'SENTENCE_BEGIN_DATE_(FOR_MAX)',
+#                       'clean_ACTUAL_SENTENCE_END_DATE',
+#                       'first_release_date',
+#                       'time_elapsed',
+#                       'outcome']]
+#
+#
+# INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
+# OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 62, :]
+# merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'] == 62,
+#                       ['PROJECTED_RELEASE_DATE_(PRD)',
+#                       'DATE_OFFENSE_COMMITTED_-_BEGIN',
+#                       'DATE_OFFENSE_COMMITTED_-_END',
+#                       'OFFENDER_NC_DOC_ID_NUMBER',
+#                       'SENTENCE_BEGIN_DATE_(FOR_MAX)',
+#                       'clean_ACTUAL_SENTENCE_END_DATE',
+#                       'first_release_date',
+#                       'time_elapsed',
+#                       'outcome']]
+#
+#
+# # NOTE TODO: aggregate variables and collapse to the most recent incarceration
+# # Eventually we will only want to keep the row with a
+# # clean_ACTUAL_SENTENCE_END_DATE that matches first_release_date
+# # That will require spreading outcome within each person.
+# merged.groupby('OFFENDER_NC_DOC_ID_NUMBER')['outcome'].max()
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# OFNT9BE1 = pd.read_csv(
+#     "C:\\Users\\edwar.WJM-SONYLAPTOP\\Desktop\\ncdoc_data\\data\\preprocessed\\OFNT9BE1.csv")

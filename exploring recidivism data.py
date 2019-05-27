@@ -9,14 +9,14 @@ pd.options.display.max_columns = 100
 
 ##Steps
 #figure out sentence begin date
-#figure out how to calculate the difference since the last release 
+#figure out how to calculate the difference since the last release
 
 #
 #  OFNT3CE1
 #
 offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
 inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-begin_date = '2009-12-31'
+begin_date = '2015-12-31'
 end_date = '2019-05-01'
 ################################################################################
                             # SCRIPT
@@ -50,7 +50,7 @@ def clean_offender_data(offender_filepath):
     # Only keep people that have ever had a felony offense
     # Create a variable that indicates felony offenses
     OFNT3CE1['has_felony'] = np.where(
-        OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
+        OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0).copy()
     OFNT3CE1 = OFNT3CE1.groupby(
         'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['has_felony'].max() == 1)
     OFNT3CE1.shape  # Notice we have fewer rows now
@@ -98,7 +98,6 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
     INMT4BB1 = INMT4BB1.drop(['INMATE_COMPUTATION_STATUS_FLAG',
                               'PAROLE_DISCHARGE_DATE',
                               'PAROLE_SUPERVISION_BEGIN_DATE'], axis=1)
-
     #clean dates
     INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'] = pd.to_datetime(
                 INMT4BB1['ACTUAL_SENTENCE_END_DATE'], errors='coerce')
@@ -113,24 +112,28 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
     INMT4BB1['release_date_with_imputation'] = np.where(
         (INMT4BB1['release_date_with_imputation'].isnull()),
         INMT4BB1['clean_projected_release_date'],
-        INMT4BB1['release_date_with_imputation'])
+        INMT4BB1['release_date_with_imputation']).copy()
 
     INMT4BB1['imputed_release_date_flag'] = np.where(
             INMT4BB1['clean_projected_release_date'].notnull() &
-            INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull(), 1, 0)
+            INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull(), 1, 0).copy()
 
-    INMT4BB1['release_after_begin_date'] = np.where(
-        (INMT4BB1['release_date_with_imputation'] > begin_date), 1, 0)
-    INMT4BB1['release_before_end_date'] = np.where(
-        (INMT4BB1['release_date_with_imputation'] < end_date), 1, 0)
-    INMT4BB1['in_time_window'] = 0
-    INMT4BB1.loc[(INMT4BB1['release_after_begin_date'] > 0) &
-                 (INMT4BB1['release_before_end_date'] > 0), 'in_time_window'] = 1
+    #I think we should futz with timings later - anyway the below is incorrect
+    # we don't want to get rid of people with releases dates outside the time period,
+    #because they could have commited a crime during the time period.
 
-    # INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
-    # Only keep people with releases in our time window
-    INMT4BB1 = INMT4BB1.groupby(
-        'INMATE_DOC_NUMBER').filter(lambda x: x['in_time_window'].max() == 1)
+    # INMT4BB1['release_after_begin_date'] = np.where(
+    #     (INMT4BB1['release_date_with_imputation'] > begin_date), 1, 0).copy()
+    # INMT4BB1['release_before_end_date'] = np.where(
+    #     (INMT4BB1['release_date_with_imputation'] < end_date), 1, 0).copy()
+    # INMT4BB1['in_time_window'] = 0
+    # INMT4BB1.loc[(INMT4BB1['release_after_begin_date'] > 0) &
+    #              (INMT4BB1['release_before_end_date'] > 0), 'in_time_window'] = 1
+    #
+    # # INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
+    # # Only keep people with releases in our time window
+    # INMT4BB1 = INMT4BB1.groupby(
+    #     'INMATE_DOC_NUMBER').filter(lambda x: x['in_time_window'].max() == 1)
 
     INMT4BB1.tail(10)
 
@@ -166,13 +169,14 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
                 list(ids_to_keep)), : ]
 
     merged.to_csv("merged_subset.csv")
+
     #Create a clean sentence end date
-    merged.loc[merged[
-            'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-            merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
-    merged.loc[merged[
-            'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-            merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], : ][['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_COMPONENT_NUMBER','SENTENCE_BEGIN_DATE_(FOR_MAX)', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']]
+    # merged.loc[merged[
+    #         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+    #         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
+    # merged.loc[merged[
+    #         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
+    #         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], : ][['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_COMPONENT_NUMBER','SENTENCE_BEGIN_DATE_(FOR_MAX)', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']]
 
     #Actually I think this should go after collapsing all the counts of a crime into one event.
     #keep only people who were released during our time period FOR A FELONY
@@ -185,8 +189,10 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     # merged['commited_felony_in_time_period']
     # merged = merged.groupby(
     #     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['commited_felony_in_time_period'].max() == 1)
+
     merged.shape
-    merged['SENTENCE_BEGIN_DATE_(FOR_MAX)']
+    merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].isnull().any()
+    merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].isnull().any()
     merged.head(10)
 
     return merged
@@ -207,39 +213,75 @@ def create_df_for_ml_pipeline(merged, begin_date, end_date):
     #we'll filter for crimes with release dates after the timeframe
     time_mask = (merged['release_date_with_imputation'] > begin_date)
     final = merged[time_mask]
-    final.head()
-    #collapse all counts of a crime into one event.
-    # #label each 'crime' (commitment prefix) as a felony if any of the counts (component) in the crime was a felony
-    # final['crime_w_felony_count'] = np.where(final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
-    # final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).any(final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON')
-    # merged = merged.groupby(
-    #      'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['commited_felony_in_time_period'].max() == 1)
-    #
-    # final.loc[final['OFFENDER_NC_DOC_ID_NUMBER']==142, :]
-    # final.head()
+    final['release_date_with_imputation'].describe()
 
-    #call a group of counts a felony or a misdeamonor. If any count is a felony, I call the crime a felony
-    final['crime_felony_or_misd'] = np.where(final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
+    #drop people that never had a felony during the time period
+    final['crime_felony_or_misd'] = np.where(
+        (final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON'), 1, 0).copy()
+    final = final.groupby(
+        'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['crime_felony_or_misd'].max() == 1)
+
+    #collapse all counts of a crime into one event
     crime_label = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).apply(lambda x: x['crime_felony_or_misd'].sum()).to_frame().reset_index(
                         ).rename(columns={0: 'num_of_felonies'})
-    crime_label['crime_felony_or_misd'] = np.where(crime_label['num_of_felonies'] > 0, 'FELON', 'MISD')
+    crime_label['crime_felony_or_misd'] = np.where(crime_label['num_of_felonies'] > 0, 'FELON', 'MISD').copy()
     crime_label.head()
 
     #assign a begin date and an end date to each crime
-    release_date = final.sort_values(['release_date_with_imputation']
-                                    ).groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']
+    release_date = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']
                                     ).agg({'release_date_with_imputation': 'max',
-                                           'SENTENCE_BEGIN_DATE_(FOR_MAX)': 'min'}
-                                    ).reset_index(
-                                    ).rename(columns={'release_date_with_imputation': 'crime_release_data_w_imputation'})
-    release_date
+                                           'SENTENCE_EFFECTIVE(BEGIN)_DATE': 'min'}
+                                    ).reset_index()
+
     #merge together to know if a crime is a misdeamonor or felony
     crime_w_release_date = release_date.merge(crime_label,
                             on=['OFFENDER_NC_DOC_ID_NUMBER',
                                      'COMMITMENT_PREFIX'],
                             how='outer')
-    crime_w_release_date = crime_w_release_date.drop(columns=['num_of_felonies'], axis=1)
-    crime_w_release_date.head(5)
+
+    crime_w_release_date = crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'release_date_with_imputation'])
+    crime_w_release_date = crime_w_release_date[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'release_date_with_imputation', 'crime_felony_or_misd']]
+
+    #number of people with multiple crimes within the 10 years I'm looking at.. ~ 10%. so will be less that that for recidivating within a year..
+    num_recidivism = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER'])['COMMITMENT_PREFIX'].count().to_frame().reset_index()
+    num_recidivism.loc[num_recidivism['COMMITMENT_PREFIX'] > 1, :]['COMMITMENT_PREFIX'].count()
+    num_recidivism.shape
+    crime_sub = crime_w_release_date.head(5)
+
+    crime_w_release_date.dtypes
+    crime_sub
+
+def create_time_since_last_release_df(crime_df):
+    '''
+    Creates a dataframe unique on OFFENDER_NC_DOC_ID_NUMBER and COMMITMENT_PREFIX (a person and a crime),
+    and indicates the time since the person's last felony.
+    '''
+    recidivate_df = pd.DataFrame(columns=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_since_last_release'])
+    for offender, crimes in crime_sub.groupby('OFFENDER_NC_DOC_ID_NUMBER'):
+        crimes = crimes.reset_index()
+        last_felony_release_date = pd.to_datetime('0001-01-01', errors = 'coerce')
+        for idx, crime in crimes.iterrows():
+            if crime['crime_felony_or_misd'] == "FELON" and idx == 0:
+                last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
+                print(offender, last_felony_release_date)
+            elif (idx > 0) and (last_felony_release_date):
+                time_since_last_release = pd.to_datetime(crime['SENTENCE_EFFECTIVE(BEGIN)_DATE']) - last_felony_release_date
+                print(time_since_last_release)
+                recidivate_df.loc[len(recidivate_df)] = [crime['OFFENDER_NC_DOC_ID_NUMBER'], crime['COMMITMENT_PREFIX'], time_since_last_release]
+                #set the new last crime date to be the current felongy release date
+                if crime['crime_felony_or_misd'] == "FELON":
+                    last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
+
+    return recidivate_df
+
+                      
+    for idx, crime in crime_sub.iterrows():
+        if crime_sub.loc[(idx-1)]
+        print(idx)
+        print(crime_sub.loc[idx, :])
+
+
+#INSTEAD OF DOING THIS - PIVOT THE COLUMNS TO not sure this is possible ... think about it more..
     #create a variable of time since last release
     diff_in_dates = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[].diff(periods=-1, axis=0)
     diff_in_dates

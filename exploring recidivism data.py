@@ -12,12 +12,16 @@ pd.options.display.max_columns = 100
 #figure out how to calculate the difference since the last release
 
 #
-#  OFNT3CE1
-#
+################################################################################
+                            # SET GLOBALS
+################################################################################
 offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
 inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-begin_date = '2015-12-31'
-end_date = '2019-05-01'
+begin_date = pd.to_datetime('2015-12-31')
+end_date = pd.to_datetime('2016-12-31')
+#note, we will have to start with the last end date possible before we collapse
+#the counts by crime
+
 ################################################################################
                             # SCRIPT
 ################################################################################
@@ -28,6 +32,19 @@ INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
 INMT4BB1.shape
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 merged.shape
+
+crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
+crime_w_release_date.shape
+crime_w_release_date.head()
+crime_w_release_date.dtypes
+
+#I think this is the place to filter the data (this is specifically for the ml pipeline.
+#will have to use different filters to add relevant features
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > begin_date]
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < end_date]
+df_to_ml_pipeline.shape
+df_to_ml_pipeline.to_csv("trial_output.csv")
+crimes_w_time_since_release_date = create_time_since_last_release_df(crime_w_release_date)
 
 ################################################################################
                     # READ AND CLEAN OFNT3CE1
@@ -168,7 +185,10 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     merged = merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'].isin(
                 list(ids_to_keep)), : ]
 
-    merged.to_csv("merged_subset.csv")
+    return merged
+
+
+    # merged.to_csv("merged_subset.csv")
 
     #Create a clean sentence end date
     # merged.loc[merged[
@@ -190,14 +210,14 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     # merged = merged.groupby(
     #     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['commited_felony_in_time_period'].max() == 1)
 
-    merged.shape
-    merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].isnull().any()
-    merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].isnull().any()
-    merged.head(10)
+    # merged.shape
+    # merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].isnull().any()
+    # merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].isnull().any()
+    # merged.head(10)
 
-    return merged
 
-def create_df_for_ml_pipeline(merged, begin_date, end_date):
+
+def collapse_counts_to_crimes(merged, begin_date):
     '''
     Create a dataframe to put into the ml pipeline.
 
@@ -215,17 +235,18 @@ def create_df_for_ml_pipeline(merged, begin_date, end_date):
     final = merged[time_mask]
     final['release_date_with_imputation'].describe()
 
-    #drop people that never had a felony during the time period
-    final['crime_felony_or_misd'] = np.where(
-        (final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON'), 1, 0).copy()
-    final = final.groupby(
-        'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['crime_felony_or_misd'].max() == 1)
+    # #drop people that never had a felony during the time period
+    # final['crime_felony_or_misd'] = np.where(
+    #     (final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON'), 1, 0).copy()
+    # final = final.groupby(
+    #     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['crime_felony_or_misd'].max() == 1)
 
     #collapse all counts of a crime into one event
+    final['crime_felony_or_misd'] = np.where(final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0).copy()
     crime_label = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).apply(lambda x: x['crime_felony_or_misd'].sum()).to_frame().reset_index(
                         ).rename(columns={0: 'num_of_felonies'})
+
     crime_label['crime_felony_or_misd'] = np.where(crime_label['num_of_felonies'] > 0, 'FELON', 'MISD').copy()
-    crime_label.head()
 
     #assign a begin date and an end date to each crime
     release_date = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']
@@ -234,61 +255,50 @@ def create_df_for_ml_pipeline(merged, begin_date, end_date):
                                     ).reset_index()
 
     #merge together to know if a crime is a misdeamonor or felony
-    crime_w_release_date = release_date.merge(crime_label,
-                            on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                     'COMMITMENT_PREFIX'],
-                            how='outer')
+    crime_w_release_date = release_date.merge(crime_label, on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'], how='outer')
 
     crime_w_release_date = crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'release_date_with_imputation'])
     crime_w_release_date = crime_w_release_date[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'release_date_with_imputation', 'crime_felony_or_misd']]
+    crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+    return crime_w_release_date
 
-    #number of people with multiple crimes within the 10 years I'm looking at.. ~ 10%. so will be less that that for recidivating within a year..
-    num_recidivism = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER'])['COMMITMENT_PREFIX'].count().to_frame().reset_index()
-    num_recidivism.loc[num_recidivism['COMMITMENT_PREFIX'] > 1, :]['COMMITMENT_PREFIX'].count()
-    num_recidivism.shape
-    crime_sub = crime_w_release_date.head(5)
-
-    crime_w_release_date.dtypes
-    crime_sub
 
 def create_time_since_last_release_df(crime_df):
     '''
     Creates a dataframe unique on OFFENDER_NC_DOC_ID_NUMBER and COMMITMENT_PREFIX (a person and a crime),
     and indicates the time since the person's last felony.
+
+    Helper function for create_df_for_ml_pipeline
     '''
     recidivate_df = pd.DataFrame(columns=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_since_last_release'])
-    for offender, crimes in crime_sub.groupby('OFFENDER_NC_DOC_ID_NUMBER'):
+    for offender, crimes in crime_df.groupby('OFFENDER_NC_DOC_ID_NUMBER'):
         crimes = crimes.reset_index()
         last_felony_release_date = pd.to_datetime('0001-01-01', errors = 'coerce')
         for idx, crime in crimes.iterrows():
             if crime['crime_felony_or_misd'] == "FELON" and idx == 0:
                 last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
-                print(offender, last_felony_release_date)
             elif (idx > 0) and (last_felony_release_date):
                 time_since_last_release = pd.to_datetime(crime['SENTENCE_EFFECTIVE(BEGIN)_DATE']) - last_felony_release_date
-                print(time_since_last_release)
                 recidivate_df.loc[len(recidivate_df)] = [crime['OFFENDER_NC_DOC_ID_NUMBER'], crime['COMMITMENT_PREFIX'], time_since_last_release]
                 #set the new last crime date to be the current felongy release date
                 if crime['crime_felony_or_misd'] == "FELON":
                     last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
 
-    return recidivate_df
+    #merge the recidivate_df to the original crime_df
+    crime_w_time_since_release = crime_df.merge(recidivate_df, on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])
 
-                      
-    for idx, crime in crime_sub.iterrows():
-        if crime_sub.loc[(idx-1)]
-        print(idx)
-        print(crime_sub.loc[idx, :])
+    return crime_w_time_since_release
 
 
-#INSTEAD OF DOING THIS - PIVOT THE COLUMNS TO not sure this is possible ... think about it more..
-    #create a variable of time since last release
-    diff_in_dates = crime_w_release_date.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[].diff(periods=-1, axis=0)
-    diff_in_dates
+    crime_sub = crime_w_release_date.head(5)
 
-    #drop
+    crime_w_release_date.dtypes
+    crime_sub
 
-crime.head()
+
+
+
+
 # ADD FEATURES
 # create a new data frame that has the total number of incidents with the law
 # for each person (guilty or innocent, went to jail or not)

@@ -12,7 +12,6 @@ pd.options.display.max_columns = 100
 #figure out how to calculate the difference since the last release
 
 #
-<<<<<<< HEAD
 ################################################################################
                             # SET GLOBALS
 ################################################################################
@@ -23,14 +22,6 @@ end_date = pd.to_datetime('2016-12-31')
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
 
-=======
-#  OFNT3CE1
-#
-offender_filepath = "/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-inmate_filepath = "/ncdoc_data/data/preprocessed/INMT4BB1.csv"
-begin_date = '2009-12-31'
-end_date = '2019-05-01'
->>>>>>> 9ab3b04a77d551fd2f985eb63561432b84c5298a
 ################################################################################
                             # SCRIPT
 ################################################################################
@@ -264,7 +255,6 @@ def collapse_counts_to_crimes(merged, begin_date):
                                     ).reset_index()
 
     #merge together to know if a crime is a misdeamonor or felony
-<<<<<<< HEAD
     crime_w_release_date = release_date.merge(crime_label, on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'], how='outer')
 
     crime_w_release_date = crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'release_date_with_imputation'])

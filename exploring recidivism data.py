@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib as plt
+import datetime
 pd.options.display.max_columns = 100
 
 ##Steps
@@ -17,8 +18,8 @@ pd.options.display.max_columns = 100
 ################################################################################
 offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
 inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-begin_date = pd.to_datetime('2015-12-31')
-end_date = pd.to_datetime('2016-12-31')
+begin_date = pd.to_datetime('2008-01-01')
+end_date = pd.to_datetime('2019-12-31')
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
 
@@ -34,9 +35,8 @@ merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 merged.shape
 
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-crime_w_release_date.shape
-crime_w_release_date.head()
-crime_w_release_date.dtypes
+crime_w_release_date.loc[crime_w_release_date['OFFENDER_NC_DOC_ID_NUMBER']==1188286, :]
+diff = crime_w_release_date['time_of_last_felony_release'] - crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE']
 
 #I think this is the place to filter the data (this is specifically for the ml pipeline.
 #will have to use different filters to add relevant features
@@ -44,9 +44,10 @@ df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < end_date]
 df_to_ml_pipeline.shape
 df_to_ml_pipeline.to_csv("trial_output.csv")
-crimes_w_time_since_release_date = create_time_since_last_release_df(crime_w_release_date)
+crimes_w_time_since_release_date = create_time_since_last_release_df_v2(crime_w_release_date)
+crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
 
-################################################################################
+#add features and run!!!
                     # READ AND CLEAN OFNT3CE1
 ################################################################################
 def clean_offender_data(offender_filepath):
@@ -289,9 +290,31 @@ def create_time_since_last_release_df(crime_df):
 
     return crime_w_time_since_release
 
+def create_time_since_last_release_df_v2(crime_df):
+    for index in range(1, crime_df.shape[0]):
+      for reverse_index in range(index-1, -1, -1):
+        # if the past row is the same person id:
+        if crime_df.loc[index, 'OFFENDER_NC_DOC_ID_NUMBER'] == crime_df.loc[reverse_index, 'OFFENDER_NC_DOC_ID_NUMBER']:
+          if crime_df.loc[reverse_index, 'crime_felony_or_misd'] == 'FELON':
+            crime_df.loc[index, 'time_of_last_felony_release'] = crime_df.loc[reverse_index, 'release_date_with_imputation']
+            break
+        # if the past row is NOT the same person id, go to the next row
+        else:
+          break
 
-    crime_sub = crime_w_release_date.head(5)
+    return crime_df
 
+def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
+    crime_w_release_date['recidivate'] = 0
+    diff = crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - crime_w_release_date['time_of_last_felony_release']
+    crime_w_release_date.loc[diff < pd.to_timedelta(365, 'D'), 'recidivate'] = 1
+
+    crime_sub =
+    crime_w_release_date.head()
+    crime_sub['time_of_last_felony_release'] = None
+    crime_sub = crime_sub.sort_values(['OFFENDER_NC_DOC_ID_NUMBER','release_date_with_imputation'])
+    crime_sub_time_since_release = create_time_since_last_release_df_v2(crime_sub)
+crime_sub_time_since_release
     crime_w_release_date.dtypes
     crime_sub
 

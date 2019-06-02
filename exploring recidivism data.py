@@ -6,46 +6,94 @@ import pandas as pd
 import numpy as np
 import matplotlib as plt
 import datetime
+import pipeline_helper as ph
+from datetime import date, datetime, timedelta
+from dateutil.relativedelta import relativedelta
+import assignment3_functions_bg as bg_ml
+from sklearn import (svm, ensemble, tree,
+                     linear_model, neighbors, naive_bayes, dummy)
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+from sklearn.tree import export_graphviz
+from sklearn.metrics import precision_recall_curve
+from datetime import date, datetime, timedelta
+from dateutil.relativedelta import relativedelta
+from sklearn.model_selection import ParameterGrid
+
 pd.options.display.max_columns = 100
 
-##Steps
-#figure out sentence begin date
-#figure out how to calculate the difference since the last release
-
-#
 ################################################################################
                             # SET GLOBALS
 ################################################################################
 offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
 inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-begin_date = pd.to_datetime('2008-01-01')
-end_date = pd.to_datetime('2019-12-31')
+demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+
+#Create temportal splits
+begin_date = '2008-01-01'
+end_date = '2018-01-01'
+prediction_windows = [12]
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
+
+## ML Pipeline parameters
+models_to_run = ['DT']
+k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
+
+classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
+    'LR': linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1),
+    'SVM': svm.LinearSVC(tol= 1e-5, random_state=0),
+    'AB': ensemble.AdaBoostClassifier(tree.DecisionTreeClassifier(max_depth=1), algorithm="SAMME", n_estimators=200),
+    'DT': tree.DecisionTreeClassifier(),
+    'KNN': neighbors.KNeighborsClassifier(n_neighbors=10, n_jobs=-1),
+    'GB': ensemble.GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10),
+    'BG': ensemble.BaggingClassifier(linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1))
+        }
+
+parameters = {
+    'RF':{'n_estimators': [10,100], 'max_depth': [5, 20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
+    'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
+    'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
+    'DT': {'criterion': ['gini', 'entropy'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
+    'SVM': {'C': [0.01]},
+    'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
+    'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
+    'BG': {'n_estimators': [10], 'max_samples': [.5]}}
+
+pred_y = 'recidivate'
+time_var = 'release_date_with_imputation'
+to_dummy_list = []
+vars_to_drop = []
+vars_to_drop_dates = []
+continuous_impute_list = []
+categorical_list = []
+outfile = 'output/test_pipeline.csv'
 
 ################################################################################
                             # SCRIPT
 ################################################################################
-
 OFNT3CE1 = clean_offender_data(offender_filepath)
-OFNT3CE1.shape
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
-INMT4BB1.shape
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
-merged.shape
-
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-crime_w_release_date.loc[crime_w_release_date['OFFENDER_NC_DOC_ID_NUMBER']==1188286, :]
-diff = crime_w_release_date['time_of_last_felony_release'] - crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE']
 
-#I think this is the place to filter the data (this is specifically for the ml pipeline.
-#will have to use different filters to add relevant features
-df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > begin_date]
-df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < end_date]
-df_to_ml_pipeline.shape
-df_to_ml_pipeline.to_csv("trial_output.csv")
-crimes_w_time_since_release_date = create_time_since_last_release_df_v2(crime_w_release_date)
+#get rid of crimes outside of the whole period
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
+
+#add recidivate label
+crimes_w_time_since_release_date = create_time_since_last_release_df(crime_w_release_date)
 crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
+
+
+#ask rayid about grace period
+temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows)
+
+OFNT3AA1 = load_demographic_data(demographics_filepath)
+crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
+                        on='OFFENDER_NC_DOC_ID_NUMBER',
+                        how='left')
+
 
 #add features and run!!!
                     # READ AND CLEAN OFNT3CE1
@@ -136,32 +184,53 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
             INMT4BB1['clean_projected_release_date'].notnull() &
             INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull(), 1, 0).copy()
 
-    #I think we should futz with timings later - anyway the below is incorrect
-    # we don't want to get rid of people with releases dates outside the time period,
-    #because they could have commited a crime during the time period.
-
-    # INMT4BB1['release_after_begin_date'] = np.where(
-    #     (INMT4BB1['release_date_with_imputation'] > begin_date), 1, 0).copy()
-    # INMT4BB1['release_before_end_date'] = np.where(
-    #     (INMT4BB1['release_date_with_imputation'] < end_date), 1, 0).copy()
-    # INMT4BB1['in_time_window'] = 0
-    # INMT4BB1.loc[(INMT4BB1['release_after_begin_date'] > 0) &
-    #              (INMT4BB1['release_before_end_date'] > 0), 'in_time_window'] = 1
-    #
-    # # INMT4BB1.loc[INMT4BB1['INMATE_DOC_NUMBER'] == 62, :]
-    # # Only keep people with releases in our time window
-    # INMT4BB1 = INMT4BB1.groupby(
-    #     'INMATE_DOC_NUMBER').filter(lambda x: x['in_time_window'].max() == 1)
-
     INMT4BB1.tail(10)
 
     # Number of remaining people
     INMT4BB1['INMATE_DOC_NUMBER'].unique().shape
 
     return INMT4BB1
-################################################################################
-                        # MERGE INMT4BB1 AND OFNT3CE1
-################################################################################
+
+
+def load_demographic_data(demographics_filepath):
+    '''Loads and cleans the demographic dataset'''
+    OFNT3AA1 = pd.read_csv(demographics_filepath, dtype={
+        # 'OFFENDER_NC_DOC_ID_NUMBER': 'int64',
+        'OFFENDER_BIRTH_DATE': str,
+        'OFFENDER_GENDER_CODE': str,
+        'OFFENDER_RACE_CODE': str,
+        # 'OFFENDER_HEIGHT_(IN_INCHES)': 'int64',
+        # 'OFFENDER_WEIGHT_(IN_LBS)': 'int64',
+        'OFFENDER_SKIN_COMPLEXION_CODE': str,
+        'OFFENDER_HAIR_COLOR_CODE': str,
+        'OFFENDER_EYE_COLOR_CODE': str,
+        'OFFENDER_BODY_BUILD_CODE': str,
+        'CITY_WHERE_OFFENDER_BORN': str,
+        'NC_COUNTY_WHERE_OFFENDER_BORN': str,
+        'STATE_WHERE_OFFENDER_BORN': str,
+        'COUNTRY_WHERE_OFFENDER_BORN': str,
+        'OFFENDER_CITIZENSHIP_CODE': str,
+        'OFFENDER_ETHNIC_CODE': str,
+        'OFFENDER_PRIMARY_LANGUAGE_CODE': str})
+    OFNT3AA1 = OFNT3AA1.drop(['OFFENDER_SHIRT_SIZE', 'OFFENDER_PANTS_SIZE',
+                   'OFFENDER_JACKET_SIZE', 'OFFENDER_SHOE_SIZE',
+                   'OFFENDER_DRESS_SIZE', 'NEXT_PHOTO_YEAR',
+                   'DATE_OF_LAST_UPDATE', 'TIME_OF_LAST_UPDATE'], axis=1)
+
+    OFNT3AA1['OFFENDER_HEIGHT_(IN_INCHES)'] = pd.to_numeric(
+            OFNT3AA1['OFFENDER_HEIGHT_(IN_INCHES)'])
+    OFNT3AA1['OFFENDER_WEIGHT_(IN_LBS)'] = pd.to_numeric(
+            OFNT3AA1['OFFENDER_WEIGHT_(IN_LBS)'])
+
+    OFNT3AA1['OFFENDER_NC_DOC_ID_NUMBER'] = OFNT3AA1[
+                    'OFFENDER_NC_DOC_ID_NUMBER'].str.replace(
+                    'T', '', regex=False)
+
+    OFNT3AA1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
+            OFNT3AA1['OFFENDER_NC_DOC_ID_NUMBER'])
+
+    return OFNT3AA1
+
 def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     '''
     Merge the inmate and offender pandas dataframes.
@@ -189,35 +258,6 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     return merged
 
 
-    # merged.to_csv("merged_subset.csv")
-
-    #Create a clean sentence end date
-    # merged.loc[merged[
-    #         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-    #         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], :].shape
-    # merged.loc[merged[
-    #         'SENTENCE_BEGIN_DATE_(FOR_MAX)'] !=
-    #         merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'], : ][['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_COMPONENT_NUMBER','SENTENCE_BEGIN_DATE_(FOR_MAX)', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']]
-
-    #Actually I think this should go after collapsing all the counts of a crime into one event.
-    #keep only people who were released during our time period FOR A FELONY
-    # merged.shape
-    # merged['commited_felony_in_time_period'] = np.where(
-    #     (merged['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON') &
-    #     (merged['release_date_with_imputation'] > begin_date) &
-    #     (merged['release_date_with_imputation'] < end_date)
-    #     , 1, 0)
-    # merged['commited_felony_in_time_period']
-    # merged = merged.groupby(
-    #     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['commited_felony_in_time_period'].max() == 1)
-
-    # merged.shape
-    # merged['SENTENCE_BEGIN_DATE_(FOR_MAX)'].isnull().any()
-    # merged['SENTENCE_EFFECTIVE(BEGIN)_DATE'].isnull().any()
-    # merged.head(10)
-
-
-
 def collapse_counts_to_crimes(merged, begin_date):
     '''
     Create a dataframe to put into the ml pipeline.
@@ -235,12 +275,6 @@ def collapse_counts_to_crimes(merged, begin_date):
     time_mask = (merged['release_date_with_imputation'] > begin_date)
     final = merged[time_mask]
     final['release_date_with_imputation'].describe()
-
-    # #drop people that never had a felony during the time period
-    # final['crime_felony_or_misd'] = np.where(
-    #     (final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON'), 1, 0).copy()
-    # final = final.groupby(
-    #     'OFFENDER_NC_DOC_ID_NUMBER').filter(lambda x: x['crime_felony_or_misd'].max() == 1)
 
     #collapse all counts of a crime into one event
     final['crime_felony_or_misd'] = np.where(final['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0).copy()
@@ -271,26 +305,6 @@ def create_time_since_last_release_df(crime_df):
 
     Helper function for create_df_for_ml_pipeline
     '''
-    recidivate_df = pd.DataFrame(columns=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_since_last_release'])
-    for offender, crimes in crime_df.groupby('OFFENDER_NC_DOC_ID_NUMBER'):
-        crimes = crimes.reset_index()
-        last_felony_release_date = pd.to_datetime('0001-01-01', errors = 'coerce')
-        for idx, crime in crimes.iterrows():
-            if crime['crime_felony_or_misd'] == "FELON" and idx == 0:
-                last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
-            elif (idx > 0) and (last_felony_release_date):
-                time_since_last_release = pd.to_datetime(crime['SENTENCE_EFFECTIVE(BEGIN)_DATE']) - last_felony_release_date
-                recidivate_df.loc[len(recidivate_df)] = [crime['OFFENDER_NC_DOC_ID_NUMBER'], crime['COMMITMENT_PREFIX'], time_since_last_release]
-                #set the new last crime date to be the current felongy release date
-                if crime['crime_felony_or_misd'] == "FELON":
-                    last_felony_release_date = pd.to_datetime(crime['release_date_with_imputation'])
-
-    #merge the recidivate_df to the original crime_df
-    crime_w_time_since_release = crime_df.merge(recidivate_df, on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])
-
-    return crime_w_time_since_release
-
-def create_time_since_last_release_df_v2(crime_df):
     for index in range(1, crime_df.shape[0]):
       for reverse_index in range(index-1, -1, -1):
         # if the past row is the same person id:
@@ -309,18 +323,13 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
     diff = crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - crime_w_release_date['time_of_last_felony_release']
     crime_w_release_date.loc[diff < pd.to_timedelta(365, 'D'), 'recidivate'] = 1
 
-    crime_sub =
-    crime_w_release_date.head()
-    crime_sub['time_of_last_felony_release'] = None
-    crime_sub = crime_sub.sort_values(['OFFENDER_NC_DOC_ID_NUMBER','release_date_with_imputation'])
-    crime_sub_time_since_release = create_time_since_last_release_df_v2(crime_sub)
-crime_sub_time_since_release
-    crime_w_release_date.dtypes
-    crime_sub
+    return crime_w_release_date
 
 
-
-
+################################################################################
+                        # ADD FEATURES
+                        #rough work
+################################################################################
 
 # ADD FEATURES
 # create a new data frame that has the total number of incidents with the law

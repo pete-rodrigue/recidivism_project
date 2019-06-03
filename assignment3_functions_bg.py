@@ -3,11 +3,11 @@ CAPP 30254 Building the Machine Learning Pipeline
 
 Bhargavi Ganesh
 '''
-import os 
+import os
 import pandas as pd
-import numpy as np 
+import numpy as np
 import math
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import (svm, ensemble, tree,
                      linear_model, neighbors, naive_bayes, dummy)
@@ -25,7 +25,7 @@ from sklearn.model_selection import ParameterGrid
 def file_to_dataframe(filename):
     '''
     Takes a filename and returns a pandas dataframe.
-    
+
     Input:
         filename
 
@@ -42,7 +42,7 @@ def na_summary(df):
     Takes a dataframe and returns a table
     showing which columns have NAs.
 
-    Input: 
+    Input:
         pandas dataframe
 
     Returns:
@@ -122,7 +122,7 @@ def correlation_matrix(correlations):
 def pairplot(df, vars_to_describe):
     '''
     This function takes a dataframe and variables
-    to describe and plots a pairplot showing the 
+    to describe and plots a pairplot showing the
     relationship between variables.
 
     Inputs:
@@ -131,7 +131,7 @@ def pairplot(df, vars_to_describe):
     '''
     plt.rcParams['figure.figsize']=(20,10)
     sns.pairplot(df, vars=vars_to_describe, dropna=True, height=3.5)
-    plt.show()  
+    plt.show()
 
 def boxplots(df, vars_to_describe=None):
     '''
@@ -147,8 +147,8 @@ def boxplots(df, vars_to_describe=None):
         df = df[vars_to_describe]
 
     plt.rcParams['figure.figsize'] = 16, 12
-    df.plot(kind='box', subplots=True, 
-    layout=(5, math.ceil(len(df.columns)/5)), 
+    df.plot(kind='box', subplots=True,
+    layout=(5, math.ceil(len(df.columns)/5)),
     sharex=False, sharey=False)
     plt.show()
 
@@ -197,7 +197,7 @@ def discretize(df, vars_to_discretize, num_bins=10):
 
 def categorize(df, vars_to_categorize):
     '''
-    This function takes a dataframe and a list of categorical variables 
+    This function takes a dataframe and a list of categorical variables
     and creates a binary/dummy variable from it
 
     Inputs:
@@ -254,7 +254,7 @@ def impute_by(df, col, by='median'):
 def pre_process(train, test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop):
     '''
     This function takes a training set and a testing set and pre-processes columns in the dataset,
-    to prepare them for the machine learning pipeline. 
+    to prepare them for the machine learning pipeline.
     The function takes a few lists of features to pre-process.
 
     Inputs:
@@ -264,7 +264,7 @@ def pre_process(train, test, categorical_list, to_dummy_list, continuous_impute_
         vars_to_drop: list of variables to drop
 
     Returns:
-        processed train and test sets and list of features in common between 
+        processed train and test sets and list of features in common between
         train and test sets
     '''
     features_train = set()
@@ -292,10 +292,10 @@ def pre_process(train, test, categorical_list, to_dummy_list, continuous_impute_
 
 def generate_binary_at_k(y_pred_scores, k):
     '''
-    This function converts probability scores into a binary outcome 
+    This function converts probability scores into a binary outcome
     measure based on cutoff.
 
-    Inputs: 
+    Inputs:
         y_pred_scores: dataframe of predicted probabilites for y
         k: (float) threshold
 
@@ -310,7 +310,7 @@ def generate_binary_at_k(y_pred_scores, k):
 def evaluation_scores_at_k(y_test, y_pred_scores, k):
     '''
     This function uses sklearn's built in evaluation metrics
-    to calculate precision, accuracy, recall for models, for 
+    to calculate precision, accuracy, recall for models, for
     a specified k threshold.
 
     Inputs:
@@ -334,7 +334,7 @@ def joint_sort_descending(l1, l2):
     Code adapted from Rayid Ghani's ml_functions in magic loop.
     This function sorts y_test and y_pred in descending order of probability.
 
-    Inputs: 
+    Inputs:
         l1: list 1
         l2: list 2
 
@@ -353,7 +353,7 @@ def plot_precision_recall_n(y_test, y_pred_scores, model_name):
     Inputs:
         y_test: true y values
         y_pred_scores: dataframe of predicted y values
-        model_name: title for chart, model name        
+        model_name: title for chart, model name
     '''
     y_score = y_pred_scores
     precision_curve, recall_curve, pr_thresholds = precision_recall_curve(y_test, y_pred_scores)
@@ -366,7 +366,7 @@ def plot_precision_recall_n(y_test, y_pred_scores, model_name):
         pct_above_thresh = num_above_thresh / float(number_scored)
         pct_above_per_thresh.append(pct_above_thresh)
     pct_above_per_thresh = np.array(pct_above_per_thresh)
-    
+
     plt.clf()
     fig, ax1 = plt.subplots()
     ax1.plot(pct_above_per_thresh, precision_curve, 'b')
@@ -378,22 +378,21 @@ def plot_precision_recall_n(y_test, y_pred_scores, model_name):
     ax1.set_ylim([0,1])
     ax1.set_ylim([0,1])
     ax2.set_xlim([0,1])
-    
+
     name = model_name
     plt.title(name)
     plt.show()
 
-
 def temporal_dates(start_time, end_time, prediction_windows, grace_period=None):
     '''
-    Adapted from Rayid's magic loops repository. This function takes 
-    a start time, end time, prediction window, and a grace period (time to assess evaluation) 
+    Adapted from Rayid's magic loops repository. This function takes
+    a start time, end time, prediction window, and a grace period (time to assess evaluation)
     as arguments and returns a list of lists of the time splits.
 
     Inputs:
         start_time: date of the form Y-M-D
         end_time: date of the form Y-M-D
-        prediction_windows: 
+        prediction_windows:
 
     Returns:
         list of lists of datetime objects
@@ -407,20 +406,61 @@ def temporal_dates(start_time, end_time, prediction_windows, grace_period=None):
         windows = 1
         test_end_time = start_time_date
         while (end_time_date >= test_end_time + relativedelta(months=+prediction_window)):
-            train_start_time = start_time_date
-            train_end_time = train_start_time + windows * relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
-            test_start_time = train_end_time + relativedelta(days=+1) + relativedelta(days=+grace_period+1)
-            test_end_time = test_start_time  + relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
-            temp_dates.append([train_start_time,train_end_time,test_start_time,test_end_time,prediction_window])
-            windows += 1
+            if grace_period:
+                train_start_time = start_time_date
+                train_end_time = train_start_time + windows * relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
+                test_start_time = train_end_time + relativedelta(days=+1) + relativedelta(days=+grace_period+1)
+                test_end_time = test_start_time  + relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
+                temp_dates.append([train_start_time,train_end_time,test_start_time,test_end_time,prediction_window])
+                windows += 1
+            else:
+                train_start_time = start_time_date
+                train_end_time = train_start_time + windows * relativedelta(months=+prediction_window) - relativedelta(days=+1)
+                test_start_time = train_end_time + relativedelta(days=+1)
+                test_end_time = test_start_time  + relativedelta(months=+prediction_window) - relativedelta(days=+1)
+                temp_dates.append([train_start_time,train_end_time,test_start_time,test_end_time,prediction_window])
+                windows += 1
+
 
     return temp_dates
+
+# def temporal_dates(start_time, end_time, prediction_windows, grace_period=None):
+#     '''
+#     Adapted from Rayid's magic loops repository. This function takes
+#     a start time, end time, prediction window, and a grace period (time to assess evaluation)
+#     as arguments and returns a list of lists of the time splits.
+#
+#     Inputs:
+#         start_time: date of the form Y-M-D
+#         end_time: date of the form Y-M-D
+#         prediction_windows:
+#
+#     Returns:
+#         list of lists of datetime objects
+#     '''
+#     start_time_date = datetime.strptime(start_time, '%Y-%m-%d')
+#     end_time_date = datetime.strptime(end_time, '%Y-%m-%d')
+#
+#     temp_dates = []
+#
+#     for prediction_window in prediction_windows:
+#         windows = 1
+#         test_end_time = start_time_date
+#         while (end_time_date >= test_end_time + relativedelta(months=+prediction_window)):
+#             train_start_time = start_time_date
+#             train_end_time = train_start_time + windows * relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
+#             test_start_time = train_end_time + relativedelta(days=+1) + relativedelta(days=+grace_period+1)
+#             test_end_time = test_start_time  + relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
+#             temp_dates.append([train_start_time,train_end_time,test_start_time,test_end_time,prediction_window])
+#             windows += 1
+#
+#     return temp_dates
 
 
 def split_data(df, selected_y, selected_features):
     '''
-    This function takes a dataframe, a list of selected features, 
-    a selected y variable, and a test size, and returns a 
+    This function takes a dataframe, a list of selected features,
+    a selected y variable, and a test size, and returns a
     training set and a testing set of the data.
 
     Inputs:
@@ -437,14 +477,14 @@ def split_data(df, selected_y, selected_features):
     x_train, x_test, y_train, y_test = train_test_split(
         x, y)
 
-    return x_train, x_test, y_train, y_test   
+    return x_train, x_test, y_train, y_test
 
 
 
 def temporal_split(df, time_var, selected_y, train_start, train_end, test_start, test_end, vars_to_drop_dates):
     '''
-    This function takes a dataframe and splits it into training and test 
-    sets depending on the starting and end times provided. 
+    This function takes a dataframe and splits it into training and test
+    sets depending on the starting and end times provided.
 
     Inputs:
         df: pandas dataframe of interest
@@ -458,7 +498,7 @@ def temporal_split(df, time_var, selected_y, train_start, train_end, test_start,
 
     Returns:
         x_train, x_test, y_train, y_test: train/test splits
-    ''' 
+    '''
     train_data = df[(df[time_var] >= train_start) & (df[time_var] <= train_end)]
     train_data.drop([time_var], axis=1)
     y_train = train_data[selected_y]
@@ -478,7 +518,9 @@ def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
     those k values.
     '''
     full_list = []
-    for k in k_list:
+    # with open("Output.txt","w") as text_file:
+    #     text_file.write("error:{}".format(type(k_list[0])))
+    for k in [20, 50]:
         precision, accuracy, recall, f1 = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
         full_list.append(precision)
         full_list.append(accuracy)
@@ -537,6 +579,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
                         y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
+                        print(y_test_sorted.columns)
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
@@ -559,13 +602,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
                         '', '', '', '', '', '', '', '', '', '', '']
 
-    
+
     results_df.to_csv(outfile)
 
     return results_df, params
-
-
-
-
-
-

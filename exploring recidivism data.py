@@ -5,12 +5,12 @@ import pandas as pd
 import numpy as np
 import matplotlib as plt
 import datetime
-import pipeline_helper as ph
+# import pipeline_helper as ph
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import os
-import preprocess as pre
-import pipeline_helper as ml
+# import preprocess as pre
+# import pipeline_helper as ml
 import assignment3_functions_bg as bg_ml
 from sklearn import (svm, ensemble, tree,
                      linear_model, neighbors, naive_bayes, dummy)
@@ -27,11 +27,11 @@ pd.options.display.max_columns = 100
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+offender_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+inmate_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+demographics_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
-end_date = '2018-01-01'
+end_date = '2010-01-01'
 ################################################################################
                         # SCRIPT - Merge and Format Data
 ################################################################################
@@ -49,12 +49,11 @@ crimes_w_time_since_release_date = create_time_since_last_release_df(crime_w_rel
 crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
 
 #ask rayid about grace period
-temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
-
 OFNT3AA1 = load_demographic_data(demographics_filepath)
 crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
+
 
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
@@ -65,7 +64,9 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
 ####################
 
 #Create temportal splits
-prediction_windows = [12]
+prediction_windows = [6]
+temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
+temp_split
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
 
@@ -114,7 +115,7 @@ to_dummy_list = []
 vars_to_drop_all = ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_of_last_felony_release']
 #Note - Make these into integer month and year variables
 vars_to_drop_dates = ['release_date_with_imputation', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'OFFENDER_BIRTH_DATE']
-continuous_impute_list = []
+continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
 categorical_list = ['crime_felony_or_misd', 'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
        'OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)',
        'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
@@ -123,34 +124,26 @@ categorical_list = ['crime_felony_or_misd', 'OFFENDER_GENDER_CODE', 'OFFENDER_RA
        'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
        'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
        'OFFENDER_PRIMARY_LANGUAGE_CODE']
-outfile = 'output/test_pipeline.csv'
+outfile = 'test_pipeline.csv'
 temp_split_sub = temp_split[0]
-temp_split_sub
+# temp_split_sub
 
-crimes_w_demographic.columns
-crimes_w_demographic.isnull().any()
-temp_split_sub[0]
+# crimes_w_demographic.columns
+# crimes_w_demographic.isnull().any()
+# temp_split_sub[0]
 x_train, x_test, y_train, y_test = bg_ml.temporal_split(crimes_w_demographic, time_var, pred_y, temp_split_sub[0], temp_split_sub[1], temp_split_sub[2], temp_split_sub[3], vars_to_drop_dates)
 x_train, x_test, features = bg_ml.pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all)
-#build models
-# x_train.select_dtypes(include=[np.datetime64])
+# #build models
+# # x_train.select_dtypes(include=[np.datetime64])
 x_train = x_train[features]
 x_test = x_test[features]
-y_pred_probs = tree.DecisionTreeClassifier().fit(x_train, y_train).predict_proba(x_test)[:,1]
-results_df, params = run_models(models_to_run, classifiers, parameters, crimes_w_demographic, pred_y, temp_split_sub, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all, vars_to_drop_dates, k_list, outfile)
+x_train['recidivate']
+# y_pred_probs = tree.DecisionTreeClassifier().fit(x_train, y_train).predict_proba(x_test)[:,1]
+# temp_split_sub[0]
+#     train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
+results_df, params = bg_ml.run_models(models_to_run, classifiers, parameters, crimes_w_demographic, pred_y, temp_split, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all, vars_to_drop_dates, k_list, outfile)
 
-
-
-
-
-
-
-
-
-
-
-
-
+results_df
 
 
 # grid_size = 'test'
@@ -237,6 +230,10 @@ def clean_offender_data(offender_filepath):
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
     OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
+
+    # cols_list = ['COUNTY_OF_CONVICTION_CODE', 'PUNISHMENT_TYPE_CODE', 'COMPONENT_DISPOSITION_CODE', 'PRIMARY_OFFENSE_CODE', 'COURT_TYPE_CODE', 'SENTENCING_PENALTY_CLASS_CODE']
+    # for col in cols_list:
+    #     make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
 
     # OFNT3CE1.to_csv("OFNT3CE1.csv")
     return OFNT3CE1
@@ -428,6 +425,14 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
                         # ADD FEATURES
                         #rough work
 ################################################################################
+def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
+    return pd.concat([data[['OFFENDER_NC_DOC_ID_NUMBER',
+                            'COMMITMENT_PREFIX']],
+                     pd.get_dummies(data[name_of_col])],
+                     axis=1, ignore_index=False).groupby(
+                     ['OFFENDER_NC_DOC_ID_NUMBER',
+                      'COMMITMENT_PREFIX']
+                     ).sum().reset_index()
 
 # ADD FEATURES
 # create a new data frame that has the total number of incidents with the law

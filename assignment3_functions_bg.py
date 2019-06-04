@@ -499,6 +499,7 @@ def temporal_split(df, time_var, selected_y, train_start, train_end, test_start,
     Returns:
         x_train, x_test, y_train, y_test: train/test splits
     '''
+    vars_to_drop_dates.append(selected_y)
     train_data = df[(df[time_var] >= train_start) & (df[time_var] <= train_end)]
     train_data.drop([time_var], axis=1)
     y_train = train_data[selected_y]
@@ -520,7 +521,7 @@ def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
     full_list = []
     # with open("Output.txt","w") as text_file:
     #     text_file.write("error:{}".format(type(k_list[0])))
-    for k in [20, 50]:
+    for k in k_list:
         precision, accuracy, recall, f1 = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
         full_list.append(precision)
         full_list.append(accuracy)
@@ -579,7 +580,6 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
                         y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
-                        print(y_test_sorted.columns)
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],

@@ -231,10 +231,6 @@ def clean_offender_data(offender_filepath):
     OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
 
-    # cols_list = ['COUNTY_OF_CONVICTION_CODE', 'PUNISHMENT_TYPE_CODE', 'COMPONENT_DISPOSITION_CODE', 'PRIMARY_OFFENSE_CODE', 'COURT_TYPE_CODE', 'SENTENCING_PENALTY_CLASS_CODE']
-    # for col in cols_list:
-    #     make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
-
     # OFNT3CE1.to_csv("OFNT3CE1.csv")
     return OFNT3CE1
 
@@ -425,7 +421,12 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
                         # ADD FEATURES
                         #rough work
 ################################################################################
-def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
+def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
+    '''
+    Takes a source dataframe and a column and returns a dataframe
+    that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
+    along with dummmy variables for that variable.
+    '''
     return pd.concat([data[['OFFENDER_NC_DOC_ID_NUMBER',
                             'COMMITMENT_PREFIX']],
                      pd.get_dummies(data[name_of_col])],
@@ -433,6 +434,52 @@ def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
                      ['OFFENDER_NC_DOC_ID_NUMBER',
                       'COMMITMENT_PREFIX']
                      ).sum().reset_index()
+
+
+def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
+    '''
+    Takes a master dataframe, a list of dataframes with all our dummy variables
+    and the key variables to use for the merge.
+    Then merges all the dataframes with the dummy variables onto a copy
+    of the master dataframe and returns that copy.
+    '''
+    rv = master_df.copy()
+    for current_df in list_of_dfs:
+        rv = rv.merge(current_df, on=list_of_merge_vars, how='left')
+
+    return rv
+
+
+def make_dummies_and_merge_onto_master(master_df,
+                                       source_df,
+                                       list_of_cols_in_source_df,
+                                       l_of_merge_vars):
+    '''
+    Combines the work of
+        make_dummy_vars_to_merge_onto_master_df
+        and
+        merge_dummy_dfs_onto_master_df
+    Takes a master dataframe, a source dataframe, and a list of variables
+    in the source dataframe we want to turn into dummmies.
+    Calls make_dummy_vars_to_merge_onto_master_df to make a bunch of
+    dataframes with those dummy variables.
+    Then calls merge_dummy_dfs_onto_master_df to merge all those dataframes
+    with the dummy variables onto the master dataframe.
+    Returns a copy of the master dataframe with all those new dummy
+    variables merged on.
+    '''
+    list_of_dfs = []
+    # appends a bunch of dataframes with our dummy variables for
+    # each column to a list of dataframes
+    for col in list_of_cols_in_source_df:
+        list_of_dfs.append(
+            make_dummy_vars_to_merge_onto_main_df(source_df, col)
+            )
+            
+    return merge_dummy_dfs_onto_master_df(master_df=master_df,
+                                          list_of_dfs=list_of_dfs,
+                                          list_of_merge_vars=l_of_merge_vars)
+
 
 # ADD FEATURES
 # create a new data frame that has the total number of incidents with the law
@@ -467,7 +514,15 @@ merged.groupby('INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX')
 
 'release_date_with_imputation'
 
-
+## Adding
+cols_list = ['COUNTY_OF_CONVICTION_CODE',
+             'PUNISHMENT_TYPE_CODE',
+             'COMPONENT_DISPOSITION_CODE',
+             'PRIMARY_OFFENSE_CODE',
+             'COURT_TYPE_CODE',
+             'SENTENCING_PENALTY_CLASS_CODE']
+for col in cols_list:
+    make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
 
 
 

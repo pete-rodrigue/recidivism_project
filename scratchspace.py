@@ -113,6 +113,18 @@ def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
                      ).sum().reset_index()
 
 
+test = pd.concat([OFNT3CE1[['OFFENDER_NC_DOC_ID_NUMBER',
+                            'COMMITMENT_PREFIX']],
+                 pd.get_dummies(OFNT3CE1['COUNTY_OF_CONVICTION_CODE'])],
+                 axis=1, ignore_index=False).groupby(
+                 ['OFFENDER_NC_DOC_ID_NUMBER',
+                  'COMMITMENT_PREFIX']
+                 ).sum().reset_index()
+test.head(10)
+OFNT3CE1.head()
+OFNT3CE1[['OFFENDER_NC_DOC_ID_NUMBER',
+                        'COMMITMENT_PREFIX',
+                        'SENTENCE_COMPONENT_NUMBER']].head(10)
 make_dummy_vars_to_merge_onto_main_df(data=OFNT3CE1,
                                       name_of_col='COUNTY_OF_CONVICTION_CODE').tail(9)
 make_dummy_vars_to_merge_onto_main_df(data=OFNT3CE1,

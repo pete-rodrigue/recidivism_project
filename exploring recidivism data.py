@@ -230,7 +230,7 @@ def clean_offender_data(offender_filepath):
                 lambda x: x['is_felony'].max() == 1).reset_index(
                 )['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
 
-    OFNT3CE1[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_with_felony)]
+    OFNT3CE1 = OFNT3CE1[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_with_felony)]
 
 
     # OFNT3CE1.shape  # Notice we have fewer rows now

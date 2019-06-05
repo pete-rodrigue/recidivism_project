@@ -28,10 +28,13 @@ pd.options.display.max_columns = 100
                             # SET GLOBALS
 ################################################################################
 offender_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+# offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
 inmate_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+# inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
 demographics_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+# demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
-end_date = '2010-01-01'
+end_date = '2011-01-01'
 
 ################################################################################
                         # SCRIPT - Merge and Format Data
@@ -42,33 +45,52 @@ merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
 # crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
 # plug in list_of_cols_in_source_df
-# crime_w_release_date = make_dummies_and_merge_onto_master(crime_w_release_date,
-#                                        OFNT3CE1,
-#                                        list_of_cols_in_source_df,
-#                                        l_of_merge_vars):
+
 
 #get rid of crimes outside of the whole period
+# crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).head(40)
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
 df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
 #add recidivate label
 crimes_w_time_since_release_date = create_time_to_next_arrest_df(df_to_ml_pipeline)
+# crimes_w_time_since_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[50:90]
+# crimes_w_time_since_release_date['start_time_of_next_incarceration'].unique().shape
 crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
+# crimes_w_recidviate_label['recidivate'].unique()
 #drop if not felony!!
 crimes_w_recidviate_label = crimes_w_recidviate_label.loc[crimes_w_recidviate_label['crime_felony_or_misd']=='FELON',]
-
+crimes_w_recidviate_label.loc[crimes_w_recidviate_label['recidivate'].isnull(), 'recidivate'] = 0
+# crimes_w_recidviate_label['recidivate'].unique()
 #how many people did we have in each year who were eligible (who commited a felony)
 #and how many people came back
 #try making 365 bigger to debug
 # take 2 years of data and check
 #should be around 10-15%
-
+crimes_w_recidviate_label['recidivate'].mean()
+crimes_w_recidviate_label.columns
 #ask rayid about grace period
 OFNT3AA1 = load_demographic_data(demographics_filepath)
 crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
 
+crimes_w_demographic.columns
+final_df = make_dummies_and_merge_onto_master(
+            # Dataset we'll merge everything onto
+            master_df=crimes_w_demographic,
+            # Dataset we're getting the variables to make the counts from:
+            source_df=OFNT3CE1,
+            # Vars we'll turn into counts:
+            list_of_cols_in_source_df=['COUNTY_OF_CONVICTION_CODE',
+                                       'PUNISHMENT_TYPE_CODE',
+                                       'COMPONENT_DISPOSITION_CODE',
+                                       'PRIMARY_OFFENSE_CODE',
+                                       'COURT_TYPE_CODE',
+                                       'SENTENCING_PENALTY_CLASS_CODE'],
+            # Variables we'll use to meerge count vars onto master df:
+            l_of_merge_vars=['OFFENDER_NC_DOC_ID_NUMBER',
+                             'COMMITMENT_PREFIX'])
 
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
@@ -126,11 +148,17 @@ parameters = {
 pred_y = 'recidivate'
 time_var = 'release_date_with_imputation'
 to_dummy_list = []
-vars_to_drop_all = ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_of_last_felony_release']
+vars_to_drop_all = ['index', 'OFFENDER_NC_DOC_ID_NUMBER',
+                    'COMMITMENT_PREFIX',
+                    'start_time_of_next_incarceration',
+                    'crime_felony_or_misd']
 #Note - Make these into integer month and year variables
-vars_to_drop_dates = ['release_date_with_imputation', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'OFFENDER_BIRTH_DATE']
+vars_to_drop_dates = ['release_date_with_imputation',
+                      'SENTENCE_EFFECTIVE(BEGIN)_DATE',
+                      'OFFENDER_BIRTH_DATE']
 continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
-categorical_list = ['crime_felony_or_misd', 'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
+categorical_list = [#'crime_felony_or_misd',
+       'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
        'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
        'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
        'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
@@ -154,7 +182,19 @@ temp_split_sub = temp_split[0]
 # y_pred_probs = tree.DecisionTreeClassifier().fit(x_train, y_train).predict_proba(x_test)[:,1]
 # temp_split_sub[0]
 #     train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
-results_df, params = bg_ml.run_models(models_to_run, classifiers, parameters, crimes_w_demographic, pred_y, temp_split, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all, vars_to_drop_dates, k_list, outfile)
+results_df, params = bg_ml.run_models(models_to_run,
+                                      classifiers,
+                                      parameters,
+                                      crimes_w_demographic,
+                                      pred_y, temp_split,
+                                      time_var,
+                                      categorical_list,
+                                      to_dummy_list,
+                                      continuous_impute_list,
+                                      vars_to_drop_all,
+                                      vars_to_drop_dates,
+                                      k_list,
+                                      outfile)
 
 # results_df
 

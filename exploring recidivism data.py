@@ -206,7 +206,8 @@ def clean_offender_data(offender_filepath):
     '''
     Takes the offender dataset (OFNT3CE1), cleans it, and outputs it as a to_csv
     '''
-    OFNT3CE1 = pd.read_csv(offender_filepath,  # 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv',
+    # offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+    OFNT3CE1 = pd.read_csv(offender_filepath,
         dtype={'OFFENDER_NC_DOC_ID_NUMBER': str,
                'MAXIMUM_SENTENCE_LENGTH': str,
                'SPLIT_SENTENCE_ACTIVE_TERM': str,
@@ -220,7 +221,7 @@ def clean_offender_data(offender_filepath):
     # Only keep people that have ever had a felony offense
     # Create a variable that indicates felony offenses
     OFNT3CE1['is_felony'] = np.where(
-        OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0).copy()
+        OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
     # OFNT3CE1 = OFNT3CE1.groupby(
     #     'OFFENDER_NC_DOC_ID_NUMBER').filter(
     #         lambda x: x['is_felony'].max() == 1).reset_index()
@@ -342,6 +343,7 @@ def load_demographic_data(demographics_filepath):
             OFNT3AA1['OFFENDER_NC_DOC_ID_NUMBER'])
 
     return OFNT3AA1
+
 
 def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
     '''

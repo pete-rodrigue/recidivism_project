@@ -32,21 +32,38 @@ inmate_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/
 demographics_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
 end_date = '2010-01-01'
+
 ################################################################################
                         # SCRIPT - Merge and Format Data
 ################################################################################
 OFNT3CE1 = clean_offender_data(offender_filepath)
+OFNT3CE1.shape
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
+# crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
+crime_w_release_date.head()
+# plug in list_of_cols_in_source_df
+# crime_w_release_date = make_dummies_and_merge_onto_master(crime_w_release_date,
+#                                        OFNT3CE1,
+#                                        list_of_cols_in_source_df,
+#                                        l_of_merge_vars):
 
 #get rid of crimes outside of the whole period
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
-
+df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
 #add recidivate label
-crimes_w_time_since_release_date = create_time_since_last_release_df(crime_w_release_date)
+crimes_w_time_since_release_date = create_time_to_next_arrest_df(df_to_ml_pipeline)
 crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
+#drop if not felony!!
+crimes_w_recidviate_label = crimes_w_recidviate_label.loc[crimes_w_recidviate_label['crime_felony_or_misd']=='FELON',]
+
+#how many people did we have in each year who were eligible (who commited a felony)
+#and how many people came back
+#try making 365 bigger to debug
+# take 2 years of data and check
+#should be around 10-15%
 
 #ask rayid about grace period
 OFNT3AA1 = load_demographic_data(demographics_filepath)
@@ -117,7 +134,6 @@ vars_to_drop_all = ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'time_of_l
 vars_to_drop_dates = ['release_date_with_imputation', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'OFFENDER_BIRTH_DATE']
 continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
 categorical_list = ['crime_felony_or_misd', 'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
-       'OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)',
        'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
        'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
        'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
@@ -131,13 +147,13 @@ temp_split_sub = temp_split[0]
 # crimes_w_demographic.columns
 # crimes_w_demographic.isnull().any()
 # temp_split_sub[0]
-x_train, x_test, y_train, y_test = bg_ml.temporal_split(crimes_w_demographic, time_var, pred_y, temp_split_sub[0], temp_split_sub[1], temp_split_sub[2], temp_split_sub[3], vars_to_drop_dates)
-x_train, x_test, features = bg_ml.pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all)
+# x_train, x_test, y_train, y_test = bg_ml.temporal_split(crimes_w_demographic, time_var, pred_y, temp_split_sub[0], temp_split_sub[1], temp_split_sub[2], temp_split_sub[3], vars_to_drop_dates)
+# x_train, x_test, features = bg_ml.pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all)
 # #build models
 # # x_train.select_dtypes(include=[np.datetime64])
-x_train = x_train[features]
-x_test = x_test[features]
-x_train['recidivate']
+# x_train = x_train[features]
+# x_test = x_test[features]
+# x_train['recidivate']
 # y_pred_probs = tree.DecisionTreeClassifier().fit(x_train, y_train).predict_proba(x_test)[:,1]
 # temp_split_sub[0]
 #     train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
@@ -230,10 +246,6 @@ def clean_offender_data(offender_filepath):
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
     OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
-
-    # cols_list = ['COUNTY_OF_CONVICTION_CODE', 'PUNISHMENT_TYPE_CODE', 'COMPONENT_DISPOSITION_CODE', 'PRIMARY_OFFENSE_CODE', 'COURT_TYPE_CODE', 'SENTENCING_PENALTY_CLASS_CODE']
-    # for col in cols_list:
-    #     make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
 
     # OFNT3CE1.to_csv("OFNT3CE1.csv")
     return OFNT3CE1
@@ -393,39 +405,56 @@ def collapse_counts_to_crimes(merged, begin_date):
     return crime_w_release_date
 
 
-def create_time_since_last_release_df(crime_df):
+def create_time_to_next_arrest_df(crime_df):
     '''
     Creates a dataframe unique on OFFENDER_NC_DOC_ID_NUMBER and COMMITMENT_PREFIX (a person and a crime),
     and indicates the time since the person's last felony.
 
     Helper function for create_df_for_ml_pipeline
     '''
-    for index in range(1, crime_df.shape[0]):
-      for reverse_index in range(index-1, -1, -1):
-        # if the past row is the same person id:
-        if crime_df.loc[index, 'OFFENDER_NC_DOC_ID_NUMBER'] == crime_df.loc[reverse_index, 'OFFENDER_NC_DOC_ID_NUMBER']:
-          if crime_df.loc[reverse_index, 'crime_felony_or_misd'] == 'FELON':
-            crime_df.loc[index, 'time_of_last_felony_release'] = crime_df.loc[reverse_index, 'release_date_with_imputation']
-            break
-        # if the past row is NOT the same person id, go to the next row
+    crime_df.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+    crime_df['start_time_of_next_incarceration'] = datetime.strptime('2080-01-01', '%Y-%m-%d')
+    for index in range(0, crime_df.shape[0] - 1):
+        if crime_df.loc[index, 'crime_felony_or_misd'] != 'FELON':
+            continue
         else:
-          break
+            if crime_df.loc[index, 'OFFENDER_NC_DOC_ID_NUMBER'] == crime_df.loc[index + 1, 'OFFENDER_NC_DOC_ID_NUMBER']:
+                crime_df.loc[index, 'start_time_of_next_incarceration'] = crime_df.loc[index + 1, 'SENTENCE_EFFECTIVE(BEGIN)_DATE']
+            else:
+                continue
 
     return crime_df
 
 def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
-    crime_w_release_date['recidivate'] = 0
-    diff = crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - crime_w_release_date['time_of_last_felony_release']
-    crime_w_release_date.loc[diff < pd.to_timedelta(365, 'D'), 'recidivate'] = 1
+    crime_w_release_date['recidivate'] = None
+    diff = (crime_w_release_date['start_time_of_next_incarceration'] -
+            crime_w_release_date['release_date_with_imputation'])
+    crime_w_release_date.loc[diff < pd.to_timedelta(recidviate_definition_in_days, 'D'), 'recidivate'] = 1
 
     return crime_w_release_date
-
 
 ################################################################################
                         # ADD FEATURES
                         #rough work
 ################################################################################
-def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
+def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
+    '''
+    Takes a source dataframe and a column and returns a dataframe
+    that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
+    along with dummmy variables for that variable.
+
+    Inputs:
+        - data - (pandas dataframe) merged (or OFN....)
+
+    Outputs:
+        - (dataframe)
+            - (primary key on 'OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX')
+            - 'OFFENDER_NC_DOC_ID_NUMBER'
+            - 'COMMITMENT_PREFIX'
+            - bunch of dummies for the column (name_of_col)
+    Next step: merge onto merged (or OFN....) by 'OFFENDER_NC_DOC_ID_NUMBER',
+                            'COMMITMENT_PREFIX'
+    '''
     return pd.concat([data[['OFFENDER_NC_DOC_ID_NUMBER',
                             'COMMITMENT_PREFIX']],
                      pd.get_dummies(data[name_of_col])],
@@ -433,6 +462,57 @@ def make_dummy_vars_to_merge_onto_main_df(data, name_of_col):
                      ['OFFENDER_NC_DOC_ID_NUMBER',
                       'COMMITMENT_PREFIX']
                      ).sum().reset_index()
+
+
+def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
+    '''
+    Takes a master dataframe, a list of dataframes with all our dummy variables
+    and the key variables to use for the merge.
+    Then merges all the dataframes with the dummy variables onto a copy
+    of the master dataframe and returns that copy.
+
+    master_df: any dataframe that is unique on 'OFFENDER_NC_DOC_ID_NUMBER',
+                            'COMMITMENT_PREFIX' (after collapsed)
+    '''
+    rv = master_df.copy()
+    for current_df in list_of_dfs:
+        rv = rv.merge(current_df, on=list_of_merge_vars, how='left')
+
+    return rv
+
+
+def make_dummies_and_merge_onto_master(master_df,
+                                       source_df,
+                                       list_of_cols_in_source_df,
+                                       l_of_merge_vars):
+    '''
+    Combines the work of
+        make_dummy_vars_to_merge_onto_master_df
+        and
+        merge_dummy_dfs_onto_master_df
+    Takes a master dataframe, a source dataframe, and a list of variables
+    in the source dataframe we want to turn into dummmies.
+    Calls make_dummy_vars_to_merge_onto_master_df to make a bunch of
+    dataframes with those dummy variables.
+    Then calls merge_dummy_dfs_onto_master_df to merge all those dataframes
+    with the dummy variables onto the master dataframe.
+    Returns a copy of the master dataframe with all those new dummy
+    variables merged on.
+
+    source_df: cleaned OFNT3CE1
+    '''
+    list_of_dfs = []
+    # appends a bunch of dataframes with our dummy variables for
+    # each column to a list of dataframes
+    for col in list_of_cols_in_source_df:
+        list_of_dfs.append(
+            make_dummy_vars_to_merge_onto_main_df(source_df, col)
+            )
+
+    return merge_dummy_dfs_onto_master_df(master_df=master_df,
+                                          list_of_dfs=list_of_dfs,
+                                          list_of_merge_vars=l_of_merge_vars)
+
 
 # ADD FEATURES
 # create a new data frame that has the total number of incidents with the law
@@ -467,7 +547,15 @@ merged.groupby('INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX')
 
 'release_date_with_imputation'
 
-
+## Adding
+cols_list = ['COUNTY_OF_CONVICTION_CODE',
+             'PUNISHMENT_TYPE_CODE',
+             'COMPONENT_DISPOSITION_CODE',
+             'PRIMARY_OFFENSE_CODE',
+             'COURT_TYPE_CODE',
+             'SENTENCING_PENALTY_CLASS_CODE']
+for col in cols_list:
+    make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
 
 
 

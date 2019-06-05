@@ -11,8 +11,6 @@ os.chdir('C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data')
 file_path = "data/preprocessed/OFNT3CE1.csv"
 
 
-OFNT3CE1.groupby('OFFENDER_NC_DOC_ID_NUMBER')
-
 OFNT3CE1 = pd.read_csv(file_path,
     dtype={'OFFENDER_NC_DOC_ID_NUMBER': str,
            'MAXIMUM_SENTENCE_LENGTH': str,

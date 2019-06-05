@@ -34,7 +34,7 @@ inmate_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/
 demographics_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 # demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
-end_date = '2011-01-01'
+end_date = '2010-01-01'
 
 ################################################################################
                         # SCRIPT - Merge and Format Data
@@ -76,21 +76,17 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         how='left')
 
 crimes_w_demographic.columns
-final_df = make_dummies_and_merge_onto_master(
-            # Dataset we'll merge everything onto
-            master_df=crimes_w_demographic,
-            # Dataset we're getting the variables to make the counts from:
-            source_df=OFNT3CE1,
-            # Vars we'll turn into counts:
-            list_of_cols_in_source_df=['COUNTY_OF_CONVICTION_CODE',
-                                       'PUNISHMENT_TYPE_CODE',
-                                       'COMPONENT_DISPOSITION_CODE',
-                                       'PRIMARY_OFFENSE_CODE',
-                                       'COURT_TYPE_CODE',
-                                       'SENTENCING_PENALTY_CLASS_CODE'],
-            # Variables we'll use to meerge count vars onto master df:
-            l_of_merge_vars=['OFFENDER_NC_DOC_ID_NUMBER',
-                             'COMMITMENT_PREFIX'])
+
+final_df = make_dummies_and_merge_onto_master(master_df=crimes_w_demographic,
+                                              source_df=OFNT3CE1,
+                                              list_of_cols_in_source_df=['COUNTY_OF_CONVICTION_CODE',
+                                                                         'PUNISHMENT_TYPE_CODE',
+                                                                         'COMPONENT_DISPOSITION_CODE',
+                                                                         'PRIMARY_OFFENSE_CODE',
+                                                                         'COURT_TYPE_CODE',
+                                                                         'SENTENCING_PENALTY_CLASS_CODE'],
+                                              l_of_merge_vars=['OFFENDER_NC_DOC_ID_NUMBER',
+                                                               'COMMITMENT_PREFIX'])
 
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
@@ -517,10 +513,7 @@ def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
     return rv
 
 
-def make_dummies_and_merge_onto_master(master_df,
-                                       source_df,
-                                       list_of_cols_in_source_df,
-                                       l_of_merge_vars):
+def make_dummies_and_merge_onto_master(master_df, source_df, list_of_cols_in_source_df, l_of_merge_vars):
     '''
     Combines the work of
         make_dummy_vars_to_merge_onto_master_df
@@ -542,7 +535,7 @@ def make_dummies_and_merge_onto_master(master_df,
     # each column to a list of dataframes
     for col in list_of_cols_in_source_df:
         list_of_dfs.append(
-            make_dummy_vars_to_merge_onto_main_df(source_df, col)
+            make_dummy_vars_to_merge_onto_master_df(source_df, col)
             )
 
     return merge_dummy_dfs_onto_master_df(master_df=master_df,

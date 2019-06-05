@@ -307,27 +307,49 @@ def generate_binary_at_k(y_pred_scores, k):
 
     return test_predictions_binary
 
-def evaluation_scores_at_k(y_test, y_pred_scores, k):
-    '''
-    This function uses sklearn's built in evaluation metrics
-    to calculate precision, accuracy, recall for models, for
-    a specified k threshold.
+# def evaluation_scores_at_k(y_test, y_pred_scores, k):
+#     '''
+#     This function uses sklearn's built in evaluation metrics
+#     to calculate precision, accuracy, recall for models, for
+#     a specified k threshold.
+#
+#     Inputs:
+#         y_test: dataframe of true y values
+#         y_pred_scores: dataframe of predicted probabilites for y
+#         k: (float) threshold
+#
+#     Returns:
+#         precision, accuracy, recall, f1 at k.
+#     '''
+#     y_pred_at_k = generate_binary_at_k(y_pred_scores, k)
+#     precision_at_k = metrics.precision_score(y_test, y_pred_at_k)
+#     accuracy_at_k = metrics.accuracy_score(y_test, y_pred_at_k)
+#     recall_at_k = metrics.recall_score(y_test, y_pred_at_k)
+#     f1_at_k = 2 * (precision_at_k * recall_at_k) / (precision_at_k + recall_at_k)
+#
+#     return precision_at_k, accuracy_at_k, recall_at_k, f1_at_k
 
-    Inputs:
-        y_test: dataframe of true y values
-        y_pred_scores: dataframe of predicted probabilites for y
-        k: (float) threshold
 
-    Returns:
-        precision, accuracy, recall, f1 at k.
-    '''
-    y_pred_at_k = generate_binary_at_k(y_pred_scores, k)
-    precision_at_k = metrics.precision_score(y_test, y_pred_at_k)
-    accuracy_at_k = metrics.accuracy_score(y_test, y_pred_at_k)
-    recall_at_k = metrics.recall_score(y_test, y_pred_at_k)
-    f1_at_k = 2 * (precision_at_k * recall_at_k) / (precision_at_k + recall_at_k)
+def precision_at_k(y_true, y_scores, k):
+    y_scores, y_true = joint_sort_descending(np.array(y_scores), np.array(y_true))
+    preds_at_k = generate_binary_at_k(y_scores, k)
+    precision = metrics.precision_score(y_true, preds_at_k)
 
-    return precision_at_k, accuracy_at_k, recall_at_k, f1_at_k
+    return precision
+
+def recall_at_k(y_true, y_scores, k):
+    y_scores_sorted, y_true_sorted = joint_sort_descending(np.array(y_scores), np.array(y_true))
+    preds_at_k = generate_binary_at_k(y_scores_sorted, k)
+    recall = metrics.recall_score(y_true_sorted, preds_at_k)
+
+    return recall
+
+def f1_at_k(y_true, y_scores, k):
+    y_scores_sorted, y_true_sorted = joint_sort_descending(np.array(y_scores), np.array(y_true))
+    preds_at_k = generate_binary_at_k(y_scores_sorted, k)
+    f1 = metrics.f1_score(y_true_sorted, preds_at_k)
+
+    return f1
 
 def joint_sort_descending(l1, l2):
     '''
@@ -512,23 +534,23 @@ def temporal_split(df, time_var, selected_y, train_start, train_end, test_start,
     return x_train, x_test, y_train, y_test
 
 
-def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
-    '''
-    This function takes a list of k values (percent of population) and
-    returns a list of precision, accuracy, recall, and f1 values at
-    those k values.
-    '''
-    full_list = []
-    # with open("Output.txt","w") as text_file:
-    #     text_file.write("error:{}".format(type(k_list[0])))
-    for k in k_list:
-        precision, accuracy, recall, f1 = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
-        full_list.append(precision)
-        full_list.append(accuracy)
-        full_list.append(recall)
-        full_list.append(f1)
-
-    return full_list
+# def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
+#     '''
+#     This function takes a list of k values (percent of population) and
+#     returns a list of precision, accuracy, recall, and f1 values at
+#     those k values.
+#     '''
+#     full_list = []
+#     # with open("Output.txt","w") as text_file:
+#     #     text_file.write("error:{}".format(type(k_list[0])))
+#     for k in k_list:
+#         precision, accuracy, recall, f1 = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
+#         full_list.append(precision)
+#         full_list.append(accuracy)
+#         full_list.append(recall)
+#         full_list.append(f1)
+#
+#     return full_list
 
 
 def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_split, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop, vars_to_drop_dates, k_list, outfile):
@@ -556,9 +578,9 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         results_df: dataframe (grid) of models and evaluation metrics
         params: model parameters
     '''
-    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'train_size', 'test_size', 'auc-roc',
-        'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10',
-        'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
+    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'parameter', 'train_size', 'test_size', 'auc-roc',
+        'p_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'r_at_10', 'f1_at_10',
+        'p_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'r_at_50', 'f1_at_50'))
 
     params = []
 
@@ -580,19 +602,34 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
                         y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
-                        metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
+                        # metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
                                                            classifier,
+                                                           p,
                                                            y_train.shape[0], y_test.shape[0],
                                                            metrics.roc_auc_score(y_test_sorted, y_pred_probs),
-                                                           metric_list[0], metric_list[1], metric_list[2], metric_list[3],
-                                                           metric_list[4], metric_list[5], metric_list[6], metric_list[7],
-                                                           metric_list[8], metric_list[9], metric_list[10], metric_list[11],
-                                                           metric_list[12], metric_list[13], metric_list[14], metric_list[15],
-                                                           metric_list[16], metric_list[17], metric_list[18], metric_list[19],
-                                                           metric_list[20], metric_list[21], metric_list[22], metric_list[23],
-                                                           metric_list[24], metric_list[25], metric_list[26], metric_list[27]]
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
+                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,50.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
+                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,50.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
+                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,50.0)]
 
                     except IndexError as e:
                         print('Error:',e)
@@ -600,7 +637,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
 
         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
-                        '', '', '', '', '', '', '', '', '', '', '']
+                        '', '', '', '', '']
 
 
     results_df.to_csv(outfile)

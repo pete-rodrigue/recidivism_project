@@ -222,24 +222,14 @@ def clean_offender_data(offender_filepath):
     # Create a variable that indicates felony offenses
     OFNT3CE1['is_felony'] = np.where(
         OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
-    # OFNT3CE1 = OFNT3CE1.groupby(
-    #     'OFFENDER_NC_DOC_ID_NUMBER').filter(
-    #         lambda x: x['is_felony'].max() == 1).reset_index()
     doc_ids_with_felony = OFNT3CE1.groupby(
         'OFFENDER_NC_DOC_ID_NUMBER').filter(
                 lambda x: x['is_felony'].max() == 1).reset_index(
                 )['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
-
     OFNT3CE1 = OFNT3CE1[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_with_felony)]
-
-
-    # OFNT3CE1.shape  # Notice we have fewer rows now
-
     #clean the dates
     OFNT3CE1['clean_SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(
             OFNT3CE1['SENTENCE_EFFECTIVE(BEGIN)_DATE'], errors='coerce')
-
-
     # dropping features we don't want to use:
     OFNT3CE1 = OFNT3CE1.drop(['NC_GENERAL_STATUTE_NUMBER',
                               'LENGTH_OF_SUPERVISION',
@@ -247,14 +237,12 @@ def clean_offender_data(offender_filepath):
                               'SUPERVISION_TO_FOLLOW_INCAR.',
                               'G.S._MAXIMUM_SENTENCE_ALLOWED',
                               'ICC_JAIL_CREDITS_(IN_DAYS)'], axis=1)
-
     # Making one person's id a number so we can make them all numeric
     OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].loc[
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] == 'T153879'] = "-999"
     OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'] = pd.to_numeric(
             OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'])
 
-    # OFNT3CE1.to_csv("OFNT3CE1.csv")
     return OFNT3CE1
 
 

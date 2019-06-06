@@ -77,8 +77,9 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
 
 
 doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
-subset_df = OFNT3CE1[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
+subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COUNTY_OF_CONVICTION_CODE')
+to_add.head()
 final_df = crimes_w_demographic.merge(to_add,
                                       on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
@@ -91,9 +92,11 @@ final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'PRIMARY_OFFENSE_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
+subset_df['COURT_TYPE_CODE'].unique().shape
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COURT_TYPE_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
+subset_df['SENTENCING_PENALTY_CLASS_CODE'].unique().shape
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'SENTENCING_PENALTY_CLASS_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')

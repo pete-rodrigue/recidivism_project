@@ -585,7 +585,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                                                            models_to_run[index],
                                                            classifier,
                                                            y_train.shape[0], y_test.shape[0],
-                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs),
+                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs_sorted),
                                                            metric_list[0], metric_list[1], metric_list[2], metric_list[3],
                                                            metric_list[4], metric_list[5], metric_list[6], metric_list[7],
                                                            metric_list[8], metric_list[9], metric_list[10], metric_list[11],

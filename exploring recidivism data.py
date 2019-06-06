@@ -77,16 +77,27 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
 
 crimes_w_demographic.columns
 
-final_df = make_dummies_and_merge_onto_master(master_df=crimes_w_demographic,
-                                              source_df=OFNT3CE1,
-                                              list_of_cols_in_source_df=['COUNTY_OF_CONVICTION_CODE',
-                                                                         'PUNISHMENT_TYPE_CODE',
-                                                                         'COMPONENT_DISPOSITION_CODE',
-                                                                         'PRIMARY_OFFENSE_CODE',
-                                                                         'COURT_TYPE_CODE',
-                                                                         'SENTENCING_PENALTY_CLASS_CODE'],
-                                              l_of_merge_vars=['OFFENDER_NC_DOC_ID_NUMBER',
-                                                               'COMMITMENT_PREFIX'])
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COUNTY_OF_CONVICTION_CODE')
+final_df = crimes_w_demographic.merge(to_add,
+                                      on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
+final_df.head()
+OFNT3CE1['COMPONENT_DISPOSITION_CODE'].unique()
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'PUNISHMENT_TYPE_CODE')
+final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COMPONENT_DISPOSITION_CODE')
+final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'PRIMARY_OFFENSE_CODE')
+final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COURT_TYPE_CODE')
+final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
+to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'SENTENCING_PENALTY_CLASS_CODE')
+final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                      'COMMITMENT_PREFIX'], how='left')
 
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
@@ -465,6 +476,7 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
 
     return crime_w_release_date
 
+
 ################################################################################
                         # ADD FEATURES
                         #rough work
@@ -487,60 +499,64 @@ def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
     Next step: merge onto merged (or OFN....) by 'OFFENDER_NC_DOC_ID_NUMBER',
                             'COMMITMENT_PREFIX'
     '''
-    return pd.concat([data[['OFFENDER_NC_DOC_ID_NUMBER',
-                            'COMMITMENT_PREFIX']],
-                     pd.get_dummies(data[name_of_col])],
-                     axis=1, ignore_index=False).groupby(
-                     ['OFFENDER_NC_DOC_ID_NUMBER',
-                      'COMMITMENT_PREFIX']
-                     ).sum().reset_index()
+    to_add = pd.get_dummies(
+            data,
+            columns=[name_of_col]).groupby(
+            ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
+            as_index=False).sum()
+    filter_col = [col for col in to_add
+                  if col.startswith(name_of_col + "_")]
+    to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
+                    filter_col]
 
+    return to_add
 
-def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
-    '''
-    Takes a master dataframe, a list of dataframes with all our dummy variables
-    and the key variables to use for the merge.
-    Then merges all the dataframes with the dummy variables onto a copy
-    of the master dataframe and returns that copy.
-
-    master_df: any dataframe that is unique on 'OFFENDER_NC_DOC_ID_NUMBER',
-                            'COMMITMENT_PREFIX' (after collapsed)
-    '''
-    rv = master_df.copy()
-    for current_df in list_of_dfs:
-        rv = rv.merge(current_df, on=list_of_merge_vars, how='left')
-
-    return rv
-
-
-def make_dummies_and_merge_onto_master(master_df, source_df, list_of_cols_in_source_df, l_of_merge_vars):
-    '''
-    Combines the work of
-        make_dummy_vars_to_merge_onto_master_df
-        and
-        merge_dummy_dfs_onto_master_df
-    Takes a master dataframe, a source dataframe, and a list of variables
-    in the source dataframe we want to turn into dummmies.
-    Calls make_dummy_vars_to_merge_onto_master_df to make a bunch of
-    dataframes with those dummy variables.
-    Then calls merge_dummy_dfs_onto_master_df to merge all those dataframes
-    with the dummy variables onto the master dataframe.
-    Returns a copy of the master dataframe with all those new dummy
-    variables merged on.
-
-    source_df: cleaned OFNT3CE1
-    '''
-    list_of_dfs = []
-    # appends a bunch of dataframes with our dummy variables for
-    # each column to a list of dataframes
-    for col in list_of_cols_in_source_df:
-        list_of_dfs.append(
-            make_dummy_vars_to_merge_onto_master_df(source_df, col)
-            )
-
-    return merge_dummy_dfs_onto_master_df(master_df=master_df,
-                                          list_of_dfs=list_of_dfs,
-                                          list_of_merge_vars=l_of_merge_vars)
+#
+# def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
+#     '''
+#     Takes a master dataframe, a list of dataframes with all our dummy variables
+#     and the key variables to use for the merge.
+#     Then merges all the dataframes with the dummy variables onto a copy
+#     of the master dataframe and returns that copy.
+#
+#     master_df: any dataframe that is unique on 'OFFENDER_NC_DOC_ID_NUMBER',
+#                             'COMMITMENT_PREFIX' (after collapsed)
+#     '''
+#     rv = master_df.copy()
+#     for current_df in list_of_dfs:
+#         rv = rv.merge(current_df, on=list_of_merge_vars, how='left')
+#
+#     return rv
+#
+#
+# def make_dummies_and_merge_onto_master(master_df, source_df, list_of_cols_in_source_df, l_of_merge_vars):
+#     '''
+#     Combines the work of
+#         make_dummy_vars_to_merge_onto_master_df
+#         and
+#         merge_dummy_dfs_onto_master_df
+#     Takes a master dataframe, a source dataframe, and a list of variables
+#     in the source dataframe we want to turn into dummmies.
+#     Calls make_dummy_vars_to_merge_onto_master_df to make a bunch of
+#     dataframes with those dummy variables.
+#     Then calls merge_dummy_dfs_onto_master_df to merge all those dataframes
+#     with the dummy variables onto the master dataframe.
+#     Returns a copy of the master dataframe with all those new dummy
+#     variables merged on.
+#
+#     source_df: cleaned OFNT3CE1
+#     '''
+#     list_of_dfs = []
+#     # appends a bunch of dataframes with our dummy variables for
+#     # each column to a list of dataframes
+#     for col in list_of_cols_in_source_df:
+#         list_of_dfs.append(
+#             make_dummy_vars_to_merge_onto_master_df(source_df, col)
+#             )
+#
+#     return merge_dummy_dfs_onto_master_df(master_df=master_df,
+#                                           list_of_dfs=list_of_dfs,
+#                                           list_of_merge_vars=l_of_merge_vars)
 
 
 # ADD FEATURES

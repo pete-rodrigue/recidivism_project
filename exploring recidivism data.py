@@ -75,27 +75,26 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
 
-crimes_w_demographic.columns
 
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COUNTY_OF_CONVICTION_CODE')
+doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
+subset_df = OFNT3CE1[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COUNTY_OF_CONVICTION_CODE')
 final_df = crimes_w_demographic.merge(to_add,
                                       on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
-final_df.head()
-OFNT3CE1['COMPONENT_DISPOSITION_CODE'].unique()
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'PUNISHMENT_TYPE_CODE')
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'PUNISHMENT_TYPE_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COMPONENT_DISPOSITION_CODE')
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COMPONENT_DISPOSITION_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'PRIMARY_OFFENSE_CODE')
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'PRIMARY_OFFENSE_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'COURT_TYPE_CODE')
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COURT_TYPE_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(OFNT3CE1, 'SENTENCING_PENALTY_CLASS_CODE')
+to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'SENTENCING_PENALTY_CLASS_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
 

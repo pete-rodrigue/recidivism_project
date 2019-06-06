@@ -556,7 +556,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         results_df: dataframe (grid) of models and evaluation metrics
         params: model parameters
     '''
-    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'train_size', 'test_size', 'auc-roc',
+    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'parameter', 'train_size', 'test_size', 'auc-roc',
         'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10',
         'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
 
@@ -584,6 +584,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
                                                            classifier,
+                                                           parameter,
                                                            y_train.shape[0], y_test.shape[0],
                                                            metrics.roc_auc_score(y_test_sorted, y_pred_probs_sorted),
                                                            metric_list[0], metric_list[1], metric_list[2], metric_list[3],
@@ -598,7 +599,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         print('Error:',e)
                         continue
 
-        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '',
+        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
                         '', '', '', '', '', '', '', '', '', '', '']
 

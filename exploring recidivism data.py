@@ -390,7 +390,6 @@ final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 # temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
-
 temp_split = [[datetime.strptime('2007-01-01', '%Y-%m-%d'),
               datetime.strptime('2007-12-31', '%Y-%m-%d'),
               datetime.strptime('2009-01-01', '%Y-%m-%d'),

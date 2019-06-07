@@ -623,7 +623,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
 
         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
-                        '', '', '', '', '']
+                        '', '', '', '', '', '', '', '', '', '', '']
 
 
     results_df.to_csv(outfile)

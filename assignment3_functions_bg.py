@@ -583,15 +583,17 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
 
     params = []
-
+    i = 1
     for timeframe in temp_split:
+        print('On time split ' + str(i) + ' of ' + str(len(temp_split)) + ' total time splits.')
+        i += 1
         train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
         x_train, x_test, y_train, y_test = temporal_split(df, time_var, selected_y, train_start, train_end, test_start, test_end, vars_to_drop_dates)
         x_train, x_test, features = pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop)
         x_train = x_train[features]
         x_test = x_test[features]
         for index, classifier in enumerate([classifiers[x] for x in models_to_run]):
-                print("Running through model {}...".format(models_to_run[index]))
+                print("\tRunning through model {}...".format(models_to_run[index]))
                 parameter_values = parameters[models_to_run[index]]
                 for p in ParameterGrid(parameter_values):
                     params.append(p)
@@ -626,6 +628,6 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         '', '', '', '', '', '', '', '', '', '', '']
 
 
-    results_df.to_csv(outfile)
+            results_df.to_csv(outfile)
 
     return results_df, params

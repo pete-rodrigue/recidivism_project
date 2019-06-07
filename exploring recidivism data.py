@@ -64,43 +64,17 @@ crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE
                                 pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
 crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
 
-#Add dummies
-crimes_w_demographic = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
-crimes_w_demographic['number_of_previous_incarcerations'] = 0
-nrows_crimes_w_demographic = crimes_w_demographic.shape[0]
-num_previous_incar = 0
-for i in range(1, nrows_crimes_w_demographic):
-    if (crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i] ==
-       crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i - 1]):
-        num_previous_incar += 1
-        crimes_w_demographic.loc[i, 'number_of_previous_incarcerations'] = num_previous_incar
-    else:
-        num_previous_incar = 0
-
-doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
-subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COUNTY_OF_CONVICTION_CODE')
-to_add.head()
-final_df = crimes_w_demographic.merge(to_add,
-                                      on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'PUNISHMENT_TYPE_CODE')
-final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COMPONENT_DISPOSITION_CODE')
-final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'PRIMARY_OFFENSE_CODE')
-final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
-subset_df['COURT_TYPE_CODE'].unique().shape
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COURT_TYPE_CODE')
-final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
-subset_df['SENTENCING_PENALTY_CLASS_CODE'].unique().shape
-to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'SENTENCING_PENALTY_CLASS_CODE')
-final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                      'COMMITMENT_PREFIX'], how='left')
+#Add variables for number of previous incarcerations
+crimes_w_demographic = create_number_prev_incarcerations(crimes_w_demographic)
+# add count variables for attributes of each crime
+list_of_vars_to_make_count_vars_with = ['COUNTY_OF_CONVICTION_CODE',
+                                        'PUNISHMENT_TYPE_CODE',
+                                        'COMPONENT_DISPOSITION_CODE',
+                                        'PRIMARY_OFFENSE_CODE',
+                                        'COURT_TYPE_CODE',
+                                        'SENTENCING_PENALTY_CLASS_CODE']
+final_df = merge_counts_variables(crimes_w_demographic,
+                                  list_of_vars_to_make_count_vars_with)
 
 final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 
@@ -434,7 +408,7 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
                         # ADD FEATURES
                         #rough work
 ################################################################################
-def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
+def make_count_vars_to_merge_onto_master_df(data, name_of_col):
     '''
     Takes a source dataframe and a column and returns a dataframe
     that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
@@ -465,94 +439,30 @@ def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
     return to_add
 
 
-    #create the output variable  - 1 if NOT funded within 60 days, 0 if funded within 60 days
+def merge_counts_variables(df, list_of_vars):
+    doc_ids_to_keep = df['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
+    subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
 
-# def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
-#     '''
-#     Takes a master dataframe, a list of dataframes with all our dummy variables
-#     and the key variables to use for the merge.
-#     Then merges all the dataframes with the dummy variables onto a copy
-#     of the master dataframe and returns that copy.
-#
-#     master_df: any dataframe that is unique on 'OFFENDER_NC_DOC_ID_NUMBER',
-#                             'COMMITMENT_PREFIX' (after collapsed)
-#     '''
-#     rv = master_df.copy()
-#     for current_df in list_of_dfs:
-#         rv = rv.merge(current_df, on=list_of_merge_vars, how='left')
-#
-#     return rv
-#
-#
-# def make_dummies_and_merge_onto_master(master_df, source_df, list_of_cols_in_source_df, l_of_merge_vars):
-#     '''
-#     Combines the work of
-#         make_dummy_vars_to_merge_onto_master_df
-#         and
-#         merge_dummy_dfs_onto_master_df
-#     Takes a master dataframe, a source dataframe, and a list of variables
-#     in the source dataframe we want to turn into dummmies.
-#     Calls make_dummy_vars_to_merge_onto_master_df to make a bunch of
-#     dataframes with those dummy variables.
-#     Then calls merge_dummy_dfs_onto_master_df to merge all those dataframes
-#     with the dummy variables onto the master dataframe.
-#     Returns a copy of the master dataframe with all those new dummy
-#     variables merged on.
-#
-#     source_df: cleaned OFNT3CE1
-#     '''
-#     list_of_dfs = []
-#     # appends a bunch of dataframes with our dummy variables for
-#     # each column to a list of dataframes
-#     for col in list_of_cols_in_source_df:
-#         list_of_dfs.append(
-#             make_dummy_vars_to_merge_onto_master_df(source_df, col)
-#             )
-#
-#     return merge_dummy_dfs_onto_master_df(master_df=master_df,
-#                                           list_of_dfs=list_of_dfs,
-#                                           list_of_merge_vars=l_of_merge_vars)
+    for var in list_of_vars:
+        to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
+        df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                              'COMMITMENT_PREFIX'], how='left')
+
+    return df
 
 
-# ADD FEATURES
-# create a new data frame that has the total number of incidents with the law
-# for each person (guilty or innocent, went to jail or not)
-# total_number_of_counts = merged.groupby('OFFENDER_NC_DOC_ID_NUMBER').count(
-#         )['COMMITMENT_PREFIX'].to_frame().reset_index(
-#         ).rename(columns={'COMMITMENT_PREFIX': 'total_num_counts'})
-# total_number_of_counts.head()
-#
-# # create a new data frame that has the total number of incarceral events
-# total_number_of_incarcerations = merged.groupby(
-#     ['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']).count(
-#     ).reset_index(
-#     )[['INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX']].groupby(
-#             'INMATE_DOC_NUMBER').count().reset_index().rename(
-#             columns={
-#             'INMATE_COMMITMENT_PREFIX': 'total_number_of_incarcerations'})
-#
-# total_number_of_incarcerations.head()
-# total_number_of_incarcerations.describe()
-# myhist = total_number_of_incarcerations['total_number_of_incarcerations'].hist()
-# total_number_of_incarcerations['total_number_of_incarcerations'].quantile(.99)
-# merged.head()
-# # did they recidivate within 2 years of last arrest?
-# #flag earliest time released in the given time period
-# #time between each release and the release before it
-# #if there is only one release, then recidivate dummy = 0
-# #if there is more than one release, and less than 24 months earlier, then recidivate
-# #dummy is 1.
-#
-# merged.groupby('INMATE_DOC_NUMBER', 'INMATE_COMMITMENT_PREFIX')
-#
-# 'release_date_with_imputation'
-#
-# ## Adding
-# cols_list = ['COUNTY_OF_CONVICTION_CODE',
-#              'PUNISHMENT_TYPE_CODE',
-#              'COMPONENT_DISPOSITION_CODE',
-#              'PRIMARY_OFFENSE_CODE',
-#              'COURT_TYPE_CODE',
-#              'SENTENCING_PENALTY_CLASS_CODE']
-# for col in cols_list:
-#     make_dummy_vars_to_merge_onto_main_df(OFNT3CE1, col)
+def create_number_prev_incarcerations(df):
+    df = df.sort_values(['OFFENDER_NC_DOC_ID_NUMBER',
+                         'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+    df['number_of_previous_incarcerations'] = 0
+    nrows_df = df.shape[0]
+    num_previous_incar = 0
+    for i in range(1, nrows_df):
+        if (df['OFFENDER_NC_DOC_ID_NUMBER'][i] ==
+           df['OFFENDER_NC_DOC_ID_NUMBER'][i - 1]):
+            num_previous_incar += 1
+            df.loc[i, 'number_of_previous_incarcerations'] = num_previous_incar
+        else:
+            num_previous_incar = 0
+
+    return df

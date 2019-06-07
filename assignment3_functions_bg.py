@@ -579,9 +579,9 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         params: model parameters
     '''
     results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'parameter', 'train_size', 'test_size', 'auc-roc',
-        'p_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'r_at_10', 'f1_at_10',
-        'p_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'r_at_50', 'f1_at_50'))
-
+        'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10',
+        'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
+    
     params = []
 
     for timeframe in temp_split:
@@ -608,34 +608,20 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                                                            classifier,
                                                            p,
                                                            y_train.shape[0], y_test.shape[0],
-                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
-                                                           precision_at_k(y_test_sorted,y_pred_probs_sorted,50.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
-                                                           recall_at_k(y_test_sorted,y_pred_probs_sorted,50.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
-                                                           f1_at_k(y_test_sorted,y_pred_probs_sorted,50.0)]
+                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs_sorted),
+                                                           metric_list[0], metric_list[1], metric_list[2], metric_list[3],
+                                                           metric_list[4], metric_list[5], metric_list[6], metric_list[7],
+                                                           metric_list[8], metric_list[9], metric_list[10], metric_list[11],
+                                                           metric_list[12], metric_list[13], metric_list[14], metric_list[15],
+                                                           metric_list[16], metric_list[17], metric_list[18], metric_list[19],
+                                                           metric_list[20], metric_list[21], metric_list[22], metric_list[23],
+                                                           metric_list[24], metric_list[25], metric_list[26], metric_list[27]]
 
                     except IndexError as e:
                         print('Error:',e)
                         continue
 
-        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '',
+        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
                         '', '', '', '', '']
 

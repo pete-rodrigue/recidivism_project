@@ -24,165 +24,6 @@ from sklearn.model_selection import ParameterGrid
 
 pd.options.display.max_columns = 100
 
-################################################################################
-                            # SET GLOBALS
-################################################################################
-offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-# offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-# inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
-demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-# demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-begin_date = '2008-01-01'
-end_date = '2010-01-01'
-
-################################################################################
-                        # SCRIPT - Merge and Format Data
-################################################################################
-OFNT3CE1 = clean_offender_data(offender_filepath)
-INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
-merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
-crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-crime_w_release_date.head()
-
-
-df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
-df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
-df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
-
-#add recidivate label
-crimes_w_time_since_release_date = create_time_to_next_incarceration_df(df_to_ml_pipeline)
-crimes_w_recidviate_label= create_recidvate_label(crimes_w_time_since_release_date, 365)
-crimes_w_recidviate_label['recidivate'].describe()
-
-OFNT3AA1 = load_demographic_data(demographics_filepath)
-crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
-                        on='OFFENDER_NC_DOC_ID_NUMBER',
-                        how='left')
-#add age feature
-crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
-                                pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
-crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
-crimes_w_demographic = df_w_age_at_first_incarceration(crimes_w_demographic)
-
-#Add variables for number of previous incarcerations
-crimes_w_demographic = create_number_prev_incarcerations(crimes_w_demographic)
-# add count variables for attributes of each crime
-list_of_vars_to_make_count_vars_with = ['COUNTY_OF_CONVICTION_CODE',
-                                        'PUNISHMENT_TYPE_CODE',
-                                        'COMPONENT_DISPOSITION_CODE',
-                                        'PRIMARY_OFFENSE_CODE',
-                                        'COURT_TYPE_CODE',
-                                        'SENTENCING_PENALTY_CLASS_CODE']
-final_df = merge_counts_variables(crimes_w_demographic,
-                                  list_of_vars_to_make_count_vars_with)
-
-final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
-
-################################################################################
-                # SCRIPT - Set pipeline parameters and train model
-################################################################################
-
-####################
-#Pipeline parameters
-####################
-
-#Create temporal splits
-prediction_windows = [12]
-temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
-temp_split
-#note, we will have to start with the last end date possible before we collapse
-#the counts by crime
-
-## ML Pipeline parameters
-models_to_run = ['DT']
-k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
-
-classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
-    'LR': linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1),
-    'SVM': svm.LinearSVC(tol= 1e-5, random_state=0),
-    'AB': ensemble.AdaBoostClassifier(tree.DecisionTreeClassifier(max_depth=1), algorithm="SAMME", n_estimators=200),
-    'DT': tree.DecisionTreeClassifier(),
-    'KNN': neighbors.KNeighborsClassifier(n_neighbors=10, n_jobs=-1),
-    'GB': ensemble.GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10),
-    'BG': ensemble.BaggingClassifier(linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1))
-        }
-
-parameters = {
-    'RF':{'n_estimators': [10,100], 'max_depth': [5, 20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
-    'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
-    'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
-    'DT': {'criterion': ['gini', 'entropy'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
-    'SVM': {'C': [0.01]},
-    'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
-    'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
-    'BG': {'n_estimators': [10], 'max_samples': [.5]}}
-
-
-# Index(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX',
-#        'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'release_date_with_imputation',
-#        'crime_felony_or_misd', 'time_of_last_felony_release', 'recidivate',
-#        'OFFENDER_BIRTH_DATE', 'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
-#        'OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)',
-#        'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
-#        'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
-#        'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
-#        'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
-#        'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
-#        'OFFENDER_PRIMARY_LANGUAGE_CODE'],
-#       dtype='object')
-
-pred_y = 'recidivate'
-time_var = 'release_date_with_imputation'
-to_dummy_list = []
-vars_to_drop_all = ['index', 'OFFENDER_NC_DOC_ID_NUMBER',
-                    'COMMITMENT_PREFIX',
-                    'start_time_of_next_incarceration',
-                    'crime_felony_or_misd']
-#Note - Make these into integer month and year variables
-vars_to_drop_dates = ['release_date_with_imputation',
-                      'SENTENCE_EFFECTIVE(BEGIN)_DATE',
-                      'OFFENDER_BIRTH_DATE']
-continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
-categorical_list = [#'crime_felony_or_misd',
-       'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
-       'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
-       'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
-       'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
-       'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
-       'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
-       'OFFENDER_PRIMARY_LANGUAGE_CODE']
-outfile = 'test_pipeline.csv'
-temp_split_sub = temp_split[0]
-# temp_split_sub
-
-# crimes_w_demographic.columns
-# crimes_w_demographic.isnull().any()
-# temp_split_sub[0]
-# x_train, x_test, y_train, y_test = bg_ml.temporal_split(crimes_w_demographic, time_var, pred_y, temp_split_sub[0], temp_split_sub[1], temp_split_sub[2], temp_split_sub[3], vars_to_drop_dates)
-# x_train, x_test, features = bg_ml.pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop_all)
-# #build models
-# # x_train.select_dtypes(include=[np.datetime64])
-# x_train = x_train[features]
-# x_test = x_test[features]
-# x_train['recidivate']
-# y_pred_probs = tree.DecisionTreeClassifier().fit(x_train, y_train).predict_proba(x_test)[:,1]
-# temp_split_sub[0]
-#     train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
-results_df, params = bg_ml.run_models(models_to_run,
-                                      classifiers,
-                                      parameters,
-                                      crimes_w_demographic,
-                                      pred_y, temp_split,
-                                      time_var,
-                                      categorical_list,
-                                      to_dummy_list,
-                                      continuous_impute_list,
-                                      vars_to_drop_all,
-                                      vars_to_drop_dates,
-                                      k_list,
-                                      outfile)
-
                     # READ AND CLEAN OFNT3CE1
 ################################################################################
 def clean_offender_data(offender_filepath):
@@ -240,7 +81,6 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
         - end_date: The end date of the time period
     '''
     INMT4BB1 = pd.read_csv(inmate_filepath)
-    INMT4BB1.head()
 
     # dropping features we don't want to use:
     INMT4BB1 = INMT4BB1.drop(['INMATE_COMPUTATION_STATUS_FLAG',
@@ -256,7 +96,6 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
 
     INMT4BB1['release_date_with_imputation'] = INMT4BB1[
                                 'clean_ACTUAL_SENTENCE_END_DATE']
-    INMT4BB1.head()
     INMT4BB1['release_date_with_imputation'] = np.where(
         (INMT4BB1['release_date_with_imputation'].isnull()),
         INMT4BB1['clean_projected_release_date'],
@@ -357,7 +196,6 @@ def collapse_counts_to_crimes(merged, begin_date):
     crime_label = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).apply(lambda x: x['crime_felony_or_misd'].sum()).to_frame().reset_index(
                         ).rename(columns={0: 'num_of_felonies'})
 
-    crime_label.head()
     crime_label['crime_felony_or_misd'] = np.where(crime_label['num_of_felonies'] > 0, 'FELON', 'MISD').copy()
 
     #assign a begin date and an end date to each crime
@@ -488,3 +326,137 @@ def create_number_prev_incarcerations(df):
             num_previous_incar = 0
 
     return df
+
+
+
+################################################################################
+                            # SET GLOBALS
+################################################################################
+offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+# offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
+# inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+# demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+begin_date = '2008-01-01'
+end_date = '2010-01-01'
+
+################################################################################
+                        # SCRIPT - Merge and Format Data
+################################################################################
+OFNT3CE1 = clean_offender_data(offender_filepath)
+INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
+merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
+crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
+print("read in")
+
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
+df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
+df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
+
+#add recidivate label
+crimes_w_time_since_release_date = create_time_to_next_incarceration_df(df_to_ml_pipeline)
+crimes_w_recidviate_label= create_recidvate_label(crimes_w_time_since_release_date, 365)
+crimes_w_recidviate_label['recidivate'].describe()
+
+OFNT3AA1 = load_demographic_data(demographics_filepath)
+crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
+                        on='OFFENDER_NC_DOC_ID_NUMBER',
+                        how='left')
+#add age feature
+crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
+                                pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
+crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
+crimes_w_demographic = df_w_age_at_first_incarceration(crimes_w_demographic)
+
+#Add variables for number of previous incarcerations
+crimes_w_demographic = create_number_prev_incarcerations(crimes_w_demographic)
+# add count variables for attributes of each crime
+list_of_vars_to_make_count_vars_with = ['COUNTY_OF_CONVICTION_CODE',
+                                        'PUNISHMENT_TYPE_CODE',
+                                        'COMPONENT_DISPOSITION_CODE',
+                                        'PRIMARY_OFFENSE_CODE',
+                                        'COURT_TYPE_CODE',
+                                        'SENTENCING_PENALTY_CLASS_CODE']
+final_df = merge_counts_variables(crimes_w_demographic,
+                                  list_of_vars_to_make_count_vars_with)
+
+final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
+
+################################################################################
+                # SCRIPT - Set pipeline parameters and train model
+################################################################################
+
+####################
+#Pipeline parameters
+####################
+
+#Create temporal splits
+prediction_windows = [12]
+temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
+#note, we will have to start with the last end date possible before we collapse
+#the counts by crime
+
+## ML Pipeline parameters
+models_to_run = ['DT']
+k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
+
+classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
+    'LR': linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1),
+    'SVM': svm.LinearSVC(tol= 1e-5, random_state=0),
+    'AB': ensemble.AdaBoostClassifier(tree.DecisionTreeClassifier(max_depth=1), algorithm="SAMME", n_estimators=200),
+    'DT': tree.DecisionTreeClassifier(),
+    'KNN': neighbors.KNeighborsClassifier(n_neighbors=10, n_jobs=-1),
+    'GB': ensemble.GradientBoostingClassifier(learning_rate=0.05, subsample=0.5, max_depth=6, n_estimators=10),
+    'BG': ensemble.BaggingClassifier(linear_model.LogisticRegression(penalty='l1', C=1e5, n_jobs=-1))
+        }
+
+parameters = {
+    'RF':{'n_estimators': [10,100], 'max_depth': [5, 20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
+    'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
+    'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
+    'DT': {'criterion': ['gini', 'entropy'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
+    'SVM': {'C': [0.01]},
+    'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
+    'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
+    'BG': {'n_estimators': [10], 'max_samples': [.5]}}
+
+test = {'DT': {'criterion': ['gini'], 'max_depth': [1],'min_samples_split': [2]}}
+
+pred_y = 'recidivate'
+time_var = 'release_date_with_imputation'
+to_dummy_list = []
+vars_to_drop_all = ['index', 'OFFENDER_NC_DOC_ID_NUMBER',
+                    'COMMITMENT_PREFIX',
+                    'start_time_of_next_incarceration',
+                    'crime_felony_or_misd']
+#Note - Make these into integer month and year variables
+vars_to_drop_dates = ['release_date_with_imputation',
+                      'SENTENCE_EFFECTIVE(BEGIN)_DATE',
+                      'OFFENDER_BIRTH_DATE']
+continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
+categorical_list = [#'crime_felony_or_misd',
+       'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
+       'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
+       'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
+       'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
+       'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
+       'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
+       'OFFENDER_PRIMARY_LANGUAGE_CODE']
+outfile = 'test_pipeline.csv'
+temp_split_sub = temp_split[0]
+
+print("training models")
+results_df, params = bg_ml.run_models(models_to_run,
+                                      classifiers,
+                                      test,
+                                      crimes_w_demographic,
+                                      pred_y, temp_split,
+                                      time_var,
+                                      categorical_list,
+                                      to_dummy_list,
+                                      continuous_impute_list,
+                                      vars_to_drop_all,
+                                      vars_to_drop_dates,
+                                      k_list,
+                                      outfile)

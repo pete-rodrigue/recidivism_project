@@ -27,11 +27,11 @@ pd.options.display.max_columns = 100
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-offender_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
 # offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-inmate_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
 # inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
-demographics_filepath = "/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 # demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
 end_date = '2010-01-01'
@@ -43,39 +43,27 @@ OFNT3CE1 = clean_offender_data(offender_filepath)
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-# crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-# plug in list_of_cols_in_source_df
 
-
-#get rid of crimes outside of the whole period
-# crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).head(40)
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
 df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
+
 #add recidivate label
 crimes_w_time_since_release_date = create_time_to_next_arrest_df(df_to_ml_pipeline)
-# crimes_w_time_since_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])[50:90]
-# crimes_w_time_since_release_date['start_time_of_next_incarceration'].unique().shape
-crimes_w_recidviate_label = create_recidvate_label(crimes_w_time_since_release_date, 365)
-# crimes_w_recidviate_label['recidivate'].unique()
-#drop if not felony!!
+crimes_w_recidviate_label= create_recidvate_label(crimes_w_time_since_release_date, 365)
 crimes_w_recidviate_label = crimes_w_recidviate_label.loc[crimes_w_recidviate_label['crime_felony_or_misd']=='FELON',]
-crimes_w_recidviate_label.loc[crimes_w_recidviate_label['recidivate'].isnull(), 'recidivate'] = 0
-# crimes_w_recidviate_label['recidivate'].unique()
-#how many people did we have in each year who were eligible (who commited a felony)
-#and how many people came back
-#try making 365 bigger to debug
-# take 2 years of data and check
-#should be around 10-15%
-crimes_w_recidviate_label['recidivate'].mean()
-crimes_w_recidviate_label.columns
-#ask rayid about grace period
+crimes_w_recidviate_label['recidivate'].describe()
+
 OFNT3AA1 = load_demographic_data(demographics_filepath)
 crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
+#add age feature
+crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
+                                pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
+crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
 
-
+#Add dummies
 doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
 subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COUNTY_OF_CONVICTION_CODE')
@@ -205,50 +193,6 @@ results_df, params = bg_ml.run_models(models_to_run,
                                       k_list,
                                       outfile)
 
-# results_df
-
-
-# grid_size = 'test'
-# temporal_split_date_var = 'release_date_with_imputation'
-# testing_length = 12
-# grace_period = 0
-# validation_dates = ['2009-01-01']
-# # models_to_run = ['DT', 'RF', 'LR', 'GB', 'AB']
-# # did not run these models - 'SVM', 'KNN'
-# models_to_run = ['DT']
-#
-# #inputs into the preprocess function - need to tell the function which variables to clean
-# columns_to_datetime = ['time_of_last_felony_release', 'release_date_with_imputation', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'OFFENDER_BIRTH_DATE']
-# dummy_vars = ['crime_felony_or_misd', 'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE', 'STATE_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN', 'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
-#                     'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN', 'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
-#                     'OFFENDER_PRIMARY_LANGUAGE_CODE']
-#
-# boolean_vars = []
-# #some variables are id vars that we don't want to include these as features
-# vars_not_to_include = ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']
-# prediction_var = 'recidivate'
-#
-# for validation_date in validation_dates:
-#     train_set, validation_set = ml.temporal_split(crimes_w_demographic, temporal_split_date_var, validation_date, testing_length, grace_period)
-#
-#     #preprocess the train_set and test_set separately
-#     train_set = pre.pre_process(train_set, dummy_vars, boolean_vars, vars_not_to_include, columns_to_datetime)
-#     validation_set = pre.pre_process(validation_set, dummy_vars, boolean_vars, vars_not_to_include, columns_to_datetime)
-#
-#     #create features - there will be features in the train that don't exist in test and vice versa
-#     #the model will only actually use the union of the two.
-#     train_features  = list(train_set.columns)
-#     test_features = list(validation_set.columns)
-#
-#     #find union of the two lists
-#     intersection_features = list(set(train_features) & set(test_features))
-#     intersection_features.remove(prediction_var)
-#
-#     #run the loop and save the output df
-#     results_df = ml.clf_loop(train_set, validation_set, intersection_features, prediction_var, models_to_run, clfs, grid, results_df, validation_date, outfile)
-
-
-#add features and run!!!
                     # READ AND CLEAN OFNT3CE1
 ################################################################################
 def clean_offender_data(offender_filepath):
@@ -264,10 +208,7 @@ def clean_offender_data(offender_filepath):
                'PRIOR_P&P_COMMNT/COMPONENT_ID': str,
                'ORIGINAL_SENTENCE_AUDIT_CODE': str})
 
-    # OFNT3CE1.shape  # Number of rows
-    # pd.options.display.max_columns = 100  # Set the max number of col to display
 
-    # Only keep people that have ever had a felony offense
     # Create a variable that indicates felony offenses
     OFNT3CE1['is_felony'] = np.where(
         OFNT3CE1['PRIMARY_FELONY/MISDEMEANOR_CD.'] == 'FELON', 1, 0)
@@ -398,7 +339,7 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
                             right_on=['INMATE_DOC_NUMBER',
                                       'INMATE_COMMITMENT_PREFIX',
                                       'INMATE_SENTENCE_COMPONENT'],
-                            how='outer')
+                            how='right')
     merged.head()
     # Find the people who have been to jail that we want to keep
     ids_to_keep = merged['INMATE_DOC_NUMBER'].unique()
@@ -470,8 +411,9 @@ def create_time_to_next_arrest_df(crime_df):
 
     return crime_df
 
+
 def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
-    crime_w_release_date['recidivate'] = None
+    crime_w_release_date['recidivate'] = 0
     diff = (crime_w_release_date['start_time_of_next_incarceration'] -
             crime_w_release_date['release_date_with_imputation'])
     crime_w_release_date.loc[diff < pd.to_timedelta(recidviate_definition_in_days, 'D'), 'recidivate'] = 1
@@ -513,7 +455,9 @@ def make_dummy_vars_to_merge_onto_master_df(data, name_of_col):
 
     return to_add
 
-#
+
+    #create the output variable  - 1 if NOT funded within 60 days, 0 if funded within 60 days
+
 # def merge_dummy_dfs_onto_master_df(master_df, list_of_dfs, list_of_merge_vars):
 #     '''
 #     Takes a master dataframe, a list of dataframes with all our dummy variables

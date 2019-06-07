@@ -329,6 +329,28 @@ def evaluation_scores_at_k(y_test, y_pred_scores, k):
 
     return precision_at_k, accuracy_at_k, recall_at_k, f1_at_k
 
+
+# def precision_at_k(y_true, y_scores, k):
+#     y_scores, y_true = joint_sort_descending(np.array(y_scores), np.array(y_true))
+#     preds_at_k = generate_binary_at_k(y_scores, k)
+#     precision = metrics.precision_score(y_true, preds_at_k)
+#
+#     return precision
+#
+# def recall_at_k(y_true, y_scores, k):
+#     y_scores_sorted, y_true_sorted = joint_sort_descending(np.array(y_scores), np.array(y_true))
+#     preds_at_k = generate_binary_at_k(y_scores_sorted, k)
+#     recall = metrics.recall_score(y_true_sorted, preds_at_k)
+#
+#     return recall
+#
+# def f1_at_k(y_true, y_scores, k):
+#     y_scores_sorted, y_true_sorted = joint_sort_descending(np.array(y_scores), np.array(y_true))
+#     preds_at_k = generate_binary_at_k(y_scores_sorted, k)
+#     f1 = metrics.f1_score(y_true_sorted, preds_at_k)
+#
+#     return f1
+
 def joint_sort_descending(l1, l2):
     '''
     Code adapted from Rayid Ghani's ml_functions in magic loop.
@@ -556,7 +578,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         results_df: dataframe (grid) of models and evaluation metrics
         params: model parameters
     '''
-    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'train_size', 'test_size', 'auc-roc',
+    results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'parameter', 'train_size', 'test_size', 'auc-roc',
         'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10',
         'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
 
@@ -584,8 +606,9 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
                                                            classifier,
+                                                           p,
                                                            y_train.shape[0], y_test.shape[0],
-                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs),
+                                                           metrics.roc_auc_score(y_test_sorted, y_pred_probs_sorted),
                                                            metric_list[0], metric_list[1], metric_list[2], metric_list[3],
                                                            metric_list[4], metric_list[5], metric_list[6], metric_list[7],
                                                            metric_list[8], metric_list[9], metric_list[10], metric_list[11],
@@ -598,9 +621,9 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         print('Error:',e)
                         continue
 
-        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '',
+        results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
-                        '', '', '', '', '', '', '', '', '', '', '']
+                        '', '', '', '', '']
 
 
     results_df.to_csv(outfile)

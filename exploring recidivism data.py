@@ -43,15 +43,16 @@ OFNT3CE1 = clean_offender_data(offender_filepath)
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
+crime_w_release_date.head()
+
 
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
 df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
 
 #add recidivate label
-crimes_w_time_since_release_date = create_time_to_next_arrest_df(df_to_ml_pipeline)
+crimes_w_time_since_release_date = create_time_to_next_incarceration_df(df_to_ml_pipeline)
 crimes_w_recidviate_label= create_recidvate_label(crimes_w_time_since_release_date, 365)
-crimes_w_recidviate_label = crimes_w_recidviate_label.loc[crimes_w_recidviate_label['crime_felony_or_misd']=='FELON',]
 crimes_w_recidviate_label['recidivate'].describe()
 
 OFNT3AA1 = load_demographic_data(demographics_filepath)
@@ -64,6 +65,18 @@ crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE
 crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
 
 #Add dummies
+crimes_w_demographic = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+crimes_w_demographic['number_of_previous_incarcerations'] = 0
+nrows_crimes_w_demographic = crimes_w_demographic.shape[0]
+num_previous_incar = 0
+for i in range(1, nrows_crimes_w_demographic):
+    if (crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i] ==
+       crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i - 1]):
+        num_previous_incar += 1
+        crimes_w_demographic.loc[i, 'number_of_previous_incarcerations'] = num_previous_incar
+    else:
+        num_previous_incar = 0
+
 doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
 subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'COUNTY_OF_CONVICTION_CODE')
@@ -88,6 +101,8 @@ subset_df['SENTENCING_PENALTY_CLASS_CODE'].unique().shape
 to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'SENTENCING_PENALTY_CLASS_CODE')
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
+
+final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
@@ -340,12 +355,6 @@ def merge_offender_inmate_df(OFNT3CE1, INMT4BB1):
                                       'INMATE_COMMITMENT_PREFIX',
                                       'INMATE_SENTENCE_COMPONENT'],
                             how='right')
-    merged.head()
-    # Find the people who have been to jail that we want to keep
-    ids_to_keep = merged['INMATE_DOC_NUMBER'].unique()
-    ids_to_keep = ids_to_keep[~np.isnan(ids_to_keep)]
-    merged = merged.loc[merged['OFFENDER_NC_DOC_ID_NUMBER'].isin(
-                list(ids_to_keep)), : ]
 
     return merged
 
@@ -373,6 +382,7 @@ def collapse_counts_to_crimes(merged, begin_date):
     crime_label = final.groupby(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX']).apply(lambda x: x['crime_felony_or_misd'].sum()).to_frame().reset_index(
                         ).rename(columns={0: 'num_of_felonies'})
 
+    crime_label.head()
     crime_label['crime_felony_or_misd'] = np.where(crime_label['num_of_felonies'] > 0, 'FELON', 'MISD').copy()
 
     #assign a begin date and an end date to each crime
@@ -380,36 +390,35 @@ def collapse_counts_to_crimes(merged, begin_date):
                                     ).agg({'release_date_with_imputation': 'max',
                                            'SENTENCE_EFFECTIVE(BEGIN)_DATE': 'min',
                                            'SENTENCE_COMPONENT_NUMBER' : 'count'}
-                                    ).reset_index().rename(columns={'SENTENCE_COMPONENT_NUMBER': 'counts_per_crime'})
+                                    ).reset_index().rename(columns={'SENTENCE_COMPONENT_NUMBER': 'total_counts_for_crime'})
 
     #merge together to know if a crime is a misdeamonor or felony
     crime_w_release_date = release_date.merge(crime_label, on=['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'], how='outer')
-
+    crime_w_release_date = crime_w_release_date.rename(columns={'num_of_felonies' : 'felony_counts_for_crime'})
     crime_w_release_date = crime_w_release_date.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'release_date_with_imputation'])
-    crime_w_release_date = crime_w_release_date[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX', 'SENTENCE_EFFECTIVE(BEGIN)_DATE', 'release_date_with_imputation', 'crime_felony_or_misd']]
     crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] = pd.to_datetime(crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+
     return crime_w_release_date
 
 
-def create_time_to_next_arrest_df(crime_df):
+def create_time_to_next_incarceration_df(df):
     '''
     Creates a dataframe unique on OFFENDER_NC_DOC_ID_NUMBER and COMMITMENT_PREFIX (a person and a crime),
     and indicates the time since the person's last felony.
 
     Helper function for create_df_for_ml_pipeline
     '''
-    crime_df.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
-    crime_df['start_time_of_next_incarceration'] = datetime.strptime('2080-01-01', '%Y-%m-%d')
-    for index in range(0, crime_df.shape[0] - 1):
-        if crime_df.loc[index, 'crime_felony_or_misd'] != 'FELON':
+    df.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+    #arbitrarily large date
+    df['start_time_of_next_incarceration'] = datetime.strptime('2080-01-01', '%Y-%m-%d')
+    for index in range(0, df.shape[0] - 1):
+        if df.loc[index, 'crime_felony_or_misd'] != 'FELON':
             continue
         else:
-            if crime_df.loc[index, 'OFFENDER_NC_DOC_ID_NUMBER'] == crime_df.loc[index + 1, 'OFFENDER_NC_DOC_ID_NUMBER']:
-                crime_df.loc[index, 'start_time_of_next_incarceration'] = crime_df.loc[index + 1, 'SENTENCE_EFFECTIVE(BEGIN)_DATE']
-            else:
-                continue
+            if df.loc[index, 'OFFENDER_NC_DOC_ID_NUMBER'] == df.loc[index + 1, 'OFFENDER_NC_DOC_ID_NUMBER']:
+                df.loc[index, 'start_time_of_next_incarceration'] = df.loc[index + 1, 'SENTENCE_EFFECTIVE(BEGIN)_DATE']
 
-    return crime_df
+    return df
 
 
 def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):

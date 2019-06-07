@@ -325,11 +325,11 @@ def create_number_prev_incarcerations(df):
                             # SET GLOBALS
 ################################################################################
 # offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
 # inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
 # demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
 begin_date = '2007-01-01'
 end_date = '2018-01-01'
 
@@ -391,21 +391,24 @@ final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
 
-temp_split = [[datetime.datetime(2007, 1, 1, 0, 0),
-              datetime.datetime(2007, 12, 31, 0, 0),
-              datetime.datetime(2009, 1, 1, 0, 0),
-              datetime.datetime(2009, 12, 31, 0, 0)],
-              [datetime.datetime(2011, 1, 1, 0, 0),
-               datetime.datetime(2011, 12, 31, 0, 0),
-               datetime.datetime(2013, 1, 1, 0, 0),
-               datetime.datetime(2013, 12, 31, 0, 0)],
-              [datetime.datetime(2015, 1, 1, 0, 0),
-               datetime.datetime(2015, 12, 31, 0, 0),
-               datetime.datetime(2017, 1, 1, 0, 0),
-               datetime.datetime(2017, 12, 31, 0, 0)]]
+datetime.strptime(date_str3, '%m-%d-%Y')
 
+temp_split = [[datetime.datetime.strptime('2007-01-01', '%Y-%m-%d'),
+              datetime.datetime.strptime('2007-12-31', '%Y-%m-%d'),
+              datetime.datetime.strptime('2009-01-01', '%Y-%m-%d'),
+              datetime.datetime.strptime('2009-12-31', '%Y-%m-%d')],
+              [datetime.datetime.strptime('2011-01-01', '%Y-%m-%d'),
+               datetime.datetime.strptime('2011-12-31', '%Y-%m-%d'),
+               datetime.datetime.strptime('2013-01-01', '%Y-%m-%d'),
+               datetime.datetime.strptime('2013-12-31', '%Y-%m-%d')],
+              [datetime.datetime.strptime('2015-01-01', '%Y-%m-%d'),
+               datetime.datetime.strptime('2015-12-31', '%Y-%m-%d'),
+               datetime.datetime.strptime('2017-01-01', '%Y-%m-%d'),
+               datetime.datetime.strptime('2017-12-31', '%Y-%m-%d')]]
+
+temp_split
 ## ML Pipeline parameters
-models_to_run = ['DT']
+models_to_run = ['DT', 'RF', 'LR', 'BG']
 k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
 
 classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),

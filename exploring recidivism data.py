@@ -256,15 +256,19 @@ def df_w_age_at_first_incarceration(crimes_w_demographic):
     Output:
         - pandas dataframe - a series
     '''
-    crimes_w_demographic = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
-    df_grouped = crimes_w_demographic.groupby('OFFENDER_NC_DOC_ID_NUMBER', as_index=False
-                       ).agg({'SENTENCE_EFFECTIVE(BEGIN)_DATE' : 'min'})
-    df_grouped['age_at_first_incarceration'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
-                                    pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
+    df = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
+    df['age_at_first_incarceration'] = (df['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
+                                    pd.to_datetime(df['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
 
-    crimes_w_demographic = crimes_w_demographic.merge(df_grouped, on='OFFENDER_NC_DOC_ID_NUMBER', how='left')
+    df_grouped = df.groupby(['OFFENDER_NC_DOC_ID_NUMBER']
+                                    ).agg({'age_at_first_incarceration' : 'min'}
+                                    ).reset_index()
 
-    return crimes_w_demographic
+
+    df_grouped = df_grouped[['OFFENDER_NC_DOC_ID_NUMBER', 'age_at_first_incarceration']]
+    final = crimes_w_demographic.merge(df_grouped, on='OFFENDER_NC_DOC_ID_NUMBER', how='left')
+
+    return final
 
 
 def make_count_vars_to_merge_onto_master_df(data, name_of_col):

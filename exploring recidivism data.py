@@ -331,12 +331,12 @@ def create_number_prev_incarcerations(df):
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-# offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-# inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
-demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-# demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+# offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+# inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
+inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+# demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 begin_date = '2008-01-01'
 end_date = '2010-01-01'
 

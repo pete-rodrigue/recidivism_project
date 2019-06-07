@@ -324,12 +324,12 @@ def create_number_prev_incarcerations(df):
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-# offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-# inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
-# demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
+offender_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+# offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+# inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
+demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+# demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
 begin_date = '2007-01-01'
 end_date = '2018-01-01'
 
@@ -391,24 +391,22 @@ final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
 
-datetime.strptime(date_str3, '%m-%d-%Y')
-
-temp_split = [[datetime.datetime.strptime('2007-01-01', '%Y-%m-%d'),
-              datetime.datetime.strptime('2007-12-31', '%Y-%m-%d'),
-              datetime.datetime.strptime('2009-01-01', '%Y-%m-%d'),
-              datetime.datetime.strptime('2009-12-31', '%Y-%m-%d')],
-              [datetime.datetime.strptime('2011-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2011-12-31', '%Y-%m-%d'),
-               datetime.datetime.strptime('2013-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2013-12-31', '%Y-%m-%d')],
-              [datetime.datetime.strptime('2015-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2015-12-31', '%Y-%m-%d'),
-               datetime.datetime.strptime('2017-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2017-12-31', '%Y-%m-%d')]]
+temp_split = [[datetime.strptime('2007-01-01', '%Y-%m-%d'),
+              datetime.strptime('2007-12-31', '%Y-%m-%d'),
+              datetime.strptime('2009-01-01', '%Y-%m-%d'),
+              datetime.strptime('2009-12-31', '%Y-%m-%d')],
+              [datetime.strptime('2011-01-01', '%Y-%m-%d'),
+               datetime.strptime('2011-12-31', '%Y-%m-%d'),
+               datetime.strptime('2013-01-01', '%Y-%m-%d'),
+               datetime.strptime('2013-12-31', '%Y-%m-%d')],
+              [datetime.strptime('2015-01-01', '%Y-%m-%d'),
+               datetime.strptime('2015-12-31', '%Y-%m-%d'),
+               datetime.strptime('2017-01-01', '%Y-%m-%d'),
+               datetime.strptime('2017-12-31', '%Y-%m-%d')]]
 
 temp_split
 ## ML Pipeline parameters
-models_to_run = ['DT', 'RF', 'LR', 'BG']
+models_to_run = ['SVM']
 k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
 
 classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
@@ -422,10 +420,10 @@ classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1)
         }
 
 parameters = {
-    'RF':{'n_estimators': [10,100], 'max_depth': [20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
+    'RF':{'n_estimators': [10, 100], 'max_depth': [10, 20, 50], 'max_features': ['sqrt','log2'], 'min_samples_split': [10], 'n_jobs': [-1]},
     'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
-    'DT': {'criterion': ['gini'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
+    'DT': {'criterion': ['gini'], 'max_depth': [1, 10, 20, 100], 'min_samples_split': [2, 5, 10]},
     'SVM': {'C': [0.01]},
     'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
     'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},

@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib as plt
 import datetime
 import os
+import aequitas
+
 pd.options.display.max_columns = 100
 
 

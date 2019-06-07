@@ -628,6 +628,6 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         '', '', '', '', '', '', '', '', '', '', '']
 
 
-            results_df.to_csv(outfile)
+        results_df.to_csv(outfile)
 
     return results_df, params

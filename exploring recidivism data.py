@@ -42,6 +42,7 @@ end_date = '2010-01-01'
 OFNT3CE1 = clean_offender_data(offender_filepath)
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
+merged.shape
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
 # crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
 # plug in list_of_cols_in_source_df
@@ -75,6 +76,17 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
 
+crimes_w_demographic = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'])
+crimes_w_demographic['number_of_previous_incarcerations'] = 0
+nrows_crimes_w_demographic = crimes_w_demographic.shape[0]
+num_previous_incar = 0
+for i in range(1, nrows_crimes_w_demographic):
+    if (crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i] ==
+       crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'][i - 1]):
+        num_previous_incar += 1
+        crimes_w_demographic.loc[i, 'number_of_previous_incarcerations'] = num_previous_incar
+    else:
+        num_previous_incar = 0
 
 doc_ids_to_keep = crimes_w_demographic['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
 subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
@@ -101,6 +113,7 @@ to_add = make_dummy_vars_to_merge_onto_master_df(subset_df, 'SENTENCING_PENALTY_
 final_df = final_df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                       'COMMITMENT_PREFIX'], how='left')
 
+'PRIOR_RECORD_LEVEL_CODE'
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
 ################################################################################

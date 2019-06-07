@@ -335,14 +335,16 @@ offender_filepath = 'C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/prepr
 inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
 # demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
 demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-begin_date = '2008-01-01'
-end_date = '2010-01-01'
+begin_date = '2007-01-01'
+end_date = '2018-01-01'
 
 ################################################################################
                         # SCRIPT - Merge and Format Data
 ################################################################################
 OFNT3CE1 = clean_offender_data(offender_filepath)
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
+# OFNT3CE1.to_csv("OFNT3CE1_2007_01_01_2018_01_01.csv")
+# INMT4BB1.to_csv("INMT4BB1_2007_01_01_2018_01_01.csv")
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
 print("read in")

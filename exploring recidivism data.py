@@ -105,11 +105,6 @@ def clean_inmate_data(inmate_filepath, begin_date, end_date):
             INMT4BB1['clean_projected_release_date'].notnull() &
             INMT4BB1['clean_ACTUAL_SENTENCE_END_DATE'].isnull(), 1, 0).copy()
 
-    INMT4BB1.tail(10)
-
-    # Number of remaining people
-    INMT4BB1['INMATE_DOC_NUMBER'].unique().shape
-
     return INMT4BB1
 
 
@@ -391,10 +386,23 @@ final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 ####################
 
 #Create temporal splits
-prediction_windows = [12]
-temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
+# prediction_windows = [12]
+# temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
+
+temp_split = [[datetime.datetime(2007, 1, 1, 0, 0),
+              datetime.datetime(2007, 12, 31, 0, 0),
+              datetime.datetime(2009, 1, 1, 0, 0),
+              datetime.datetime(2009, 12, 31, 0, 0)],
+              [datetime.datetime(2011, 1, 1, 0, 0),
+               datetime.datetime(2011, 12, 31, 0, 0),
+               datetime.datetime(2013, 1, 1, 0, 0),
+               datetime.datetime(2013, 12, 31, 0, 0)],
+              [datetime.datetime(2015, 1, 1, 0, 0),
+               datetime.datetime(2015, 12, 31, 0, 0),
+               datetime.datetime(2017, 1, 1, 0, 0),
+               datetime.datetime(2017, 12, 31, 0, 0)]]
 
 ## ML Pipeline parameters
 models_to_run = ['DT']
@@ -434,14 +442,14 @@ vars_to_drop_dates = ['release_date_with_imputation',
                       'SENTENCE_EFFECTIVE(BEGIN)_DATE',
                       'OFFENDER_BIRTH_DATE']
 continuous_impute_list = ['OFFENDER_HEIGHT_(IN_INCHES)', 'OFFENDER_WEIGHT_(IN_LBS)']
-categorical_list = [#'crime_felony_or_misd',
-       'OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
-       'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
-       'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
-       'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
-       'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
-       'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
-       'OFFENDER_PRIMARY_LANGUAGE_CODE']
+categorical_list = ['OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
+'OFFENDER_SKIN_COMPLEXION_CODE', 'OFFENDER_HAIR_COLOR_CODE',
+'OFFENDER_EYE_COLOR_CODE', 'OFFENDER_BODY_BUILD_CODE',
+'CITY_WHERE_OFFENDER_BORN', 'NC_COUNTY_WHERE_OFFENDER_BORN',
+'STATE_WHERE_OFFENDER_BORN', 'COUNTRY_WHERE_OFFENDER_BORN',
+'OFFENDER_CITIZENSHIP_CODE', 'OFFENDER_ETHNIC_CODE',
+'OFFENDER_PRIMARY_LANGUAGE_CODE']
+
 outfile = 'test_pipeline.csv'
 temp_split_sub = temp_split[0]
 

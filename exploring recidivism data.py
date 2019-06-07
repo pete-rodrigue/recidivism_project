@@ -246,7 +246,7 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
 ################################################################################
                         # ADD FEATURES
 ###############################################################################
-def df_w_age_at_first_incarceration(crimes_w_demographic):
+def df_w_age_at_first_incarceration(input_df):
     '''
     Finds the age of the person at the first time they are arrested or incarercated.
 
@@ -256,19 +256,13 @@ def df_w_age_at_first_incarceration(crimes_w_demographic):
     Output:
         - pandas dataframe - a series
     '''
-    df = crimes_w_demographic.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE'])
-    df['age_at_first_incarceration'] = (df['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
-                                    pd.to_datetime(df['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
+    df = input_df.sort_values(['OFFENDER_NC_DOC_ID_NUMBER', 'SENTENCE_EFFECTIVE(BEGIN)_DATE']).copy()
+    df['age_at_first_incarceration'] = (df['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - pd.to_datetime(df['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
 
     df_grouped = df.groupby(['OFFENDER_NC_DOC_ID_NUMBER']
                                     ).agg({'age_at_first_incarceration' : 'min'}
                                     ).reset_index()
-
-
-    df_grouped = df_grouped[['OFFENDER_NC_DOC_ID_NUMBER', 'age_at_first_incarceration']]
-    final = crimes_w_demographic.merge(df_grouped, on='OFFENDER_NC_DOC_ID_NUMBER', how='left')
-
-    return final
+    return input_df.merge(df_grouped, on='OFFENDER_NC_DOC_ID_NUMBER', how='left')
 
 
 def make_count_vars_to_merge_onto_master_df(data, name_of_col):
@@ -367,11 +361,11 @@ crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
 #add age feature
-crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] - \
+crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] -
                                 pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
-crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
+crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_with_imputation'] - \
+            pd.to_datetime(crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'])) / np.timedelta64(365, 'D')
 crimes_w_demographic = df_w_age_at_first_incarceration(crimes_w_demographic)
-
 #Add variables for number of previous incarcerations
 crimes_w_demographic = create_number_prev_incarcerations(crimes_w_demographic)
 # add count variables for attributes of each crime
@@ -415,10 +409,10 @@ classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1)
         }
 
 parameters = {
-    'RF':{'n_estimators': [10,100], 'max_depth': [5, 20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
+    'RF':{'n_estimators': [10,100], 'max_depth': [20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
     'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
-    'DT': {'criterion': ['gini', 'entropy'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
+    'DT': {'criterion': ['gini'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
     'SVM': {'C': [0.01]},
     'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
     'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
@@ -452,8 +446,8 @@ temp_split_sub = temp_split[0]
 print("training models")
 results_df, params = bg_ml.run_models(models_to_run,
                                       classifiers,
-                                      test,
-                                      crimes_w_demographic,
+                                      parameters,
+                                      final_df,
                                       pred_y, temp_split,
                                       time_var,
                                       categorical_list,

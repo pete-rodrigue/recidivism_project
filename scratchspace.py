@@ -6,7 +6,10 @@ import os
 import aequitas
 
 pd.options.display.max_columns = 100
+print([0]*4)
+pd.Series([0] * len([0]*4))
 
+print(datetime.datetime.now())
 
 os.chdir('C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data')
 

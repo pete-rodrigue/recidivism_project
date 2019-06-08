@@ -21,6 +21,7 @@ from sklearn.metrics import precision_recall_curve
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from sklearn.model_selection import ParameterGrid
+import pickle
 
 print('\tmodules loaded\t', datetime.now())
 pd.options.display.max_columns = 100
@@ -383,6 +384,7 @@ final_df = merge_counts_variables(crimes_w_demographic,
                                   list_of_vars_to_make_count_vars_with)
 
 final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
+final_df.to_pickle("pickled_final_df.pkl")
 print('\tfinal dataset ready, about to run models\t', datetime.now())
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model

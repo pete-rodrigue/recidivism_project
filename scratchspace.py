@@ -151,6 +151,7 @@
 import pickle
 import pandas as pd
 import os
+import numpy as np
 
 os.getcwd()
 os.chdir('C:\\Users\\edwar.WJM-SONYLAPTOP\\Documents\\GitHub\\recidivism_project')
@@ -158,3 +159,11 @@ data = pd.read_pickle('pickled_final_df.pkl')
 
 data.columns
 data.shape
+
+
+test = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['a', 'b', 'c'])
+test
+test.to_pickle('test_pickle.pkl')
+test = None
+test = pd.read_pickle('test_pickle.pkl')
+test

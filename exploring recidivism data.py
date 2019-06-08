@@ -281,9 +281,10 @@ def make_count_vars_to_merge_onto_master_df(data, name_of_col):
     '''
     to_add = pd.get_dummies(
             data,
-            columns=[name_of_col]).groupby(
+            columns=[name_of_col], sparse=True).groupby(
             ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
             as_index=False).sum()
+    print('\t\t\tgot dummies')
     filter_col = [col for col in to_add
                   if col.startswith(name_of_col + "_")]
     to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
@@ -301,6 +302,7 @@ def merge_counts_variables(df, list_of_vars):
         to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
         df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                               'COMMITMENT_PREFIX'], how='left')
+        print('\t\t\tdid merge for var', var)
 
     return df
 

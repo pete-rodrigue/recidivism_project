@@ -384,8 +384,9 @@ final_df = merge_counts_variables(crimes_w_demographic,
                                   list_of_vars_to_make_count_vars_with)
 
 final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
+print('\tabout to pickle final dataset\t', datetime.now())
 final_df.to_pickle("pickled_final_df.pkl")
-print('\tfinal dataset ready, about to run models\t', datetime.now())
+print('\tabout to run models\t', datetime.now())
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
 ################################################################################
@@ -414,7 +415,7 @@ temp_split = [[datetime.strptime('2007-01-01', '%Y-%m-%d'),
 
 temp_split
 ## ML Pipeline parameters
-models_to_run = ['SVM']
+models_to_run = ['KNN']
 k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
 
 classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
@@ -433,7 +434,7 @@ parameters = {
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
     'DT': {'criterion': ['gini'], 'max_depth': [1, 10, 20, 100], 'min_samples_split': [2, 5, 10]},
     'SVM': {'C': [0.01]},
-    'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
+    'KNN': {'n_neighbors': [15, 25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
     'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
     'BG': {'n_estimators': [10], 'max_samples': [.5]}}
 

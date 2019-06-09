@@ -167,3 +167,7 @@ test.to_pickle('test_pickle.pkl')
 test = None
 test = pd.read_pickle('test_pickle.pkl')
 test
+
+a = ['a', 'b', 2]
+with open("confusion_matrix_log.txt", "a+") as cm_log:
+    cm_log.write('\nHello again! cool\n' + str(a))

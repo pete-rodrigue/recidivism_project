@@ -147,27 +147,103 @@
 #
 # INMT9CF1.head()
 
+#
+# import pickle
+# import pandas as pd
+# import os
+# import numpy as np
 
-import pickle
+# os.getcwd()
+# os.chdir('C:\\Users\\edwar.WJM-SONYLAPTOP\\Documents\\GitHub\\recidivism_project')
+# data = pd.read_pickle('pickled_final_df.pkl')
+#
+# data.columns
+# data.shape
+#
+#
+# test = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['a', 'b', 'c'])
+# test
+# test.to_pickle('test_pickle.pkl')
+# test = None
+# test = pd.read_pickle('test_pickle.pkl')
+# test
+#
+# a = ['a', 'b', 2]
+# with open("confusion_matrix_log.txt", "a+") as cm_log:
+#     cm_log.write('\nHello again! cool\n' + str(a))
+
 import pandas as pd
-import os
-import numpy as np
+import seaborn as sns
+from aequitas.group import Group
+from aequitas.bias import Bias
+from aequitas.fairness import Fairness
+from aequitas.plotting import Plot
 
-os.getcwd()
-os.chdir('C:\\Users\\edwar.WJM-SONYLAPTOP\\Documents\\GitHub\\recidivism_project')
-data = pd.read_pickle('pickled_final_df.pkl')
-
-data.columns
-data.shape
+df = pd.DataFrame({'label_value': [1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+                   'score': [1, 1, 1, 0, 0, 0, 0, 0, 1, 1],
+                   'race': ['b', 'b', 'b', 'b', 'b', 'w', 'w', 'w', 'w', 'w']})
+df
 
 
-test = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['a', 'b', 'c'])
-test
-test.to_pickle('test_pickle.pkl')
-test = None
-test = pd.read_pickle('test_pickle.pkl')
-test
+aq_palette = sns.diverging_palette(225, 35, n=2)
+sns.countplot(x="race", hue="score", data=df, palette=aq_palette)
+sns.countplot(x="race", hue="label_value", data=df, palette=aq_palette)
 
-a = ['a', 'b', 2]
-with open("confusion_matrix_log.txt", "a+") as cm_log:
-    cm_log.write('\nHello again! cool\n' + str(a))
+
+g = Group()
+df.dtypes
+xtab, _ = g.get_crosstabs(df)
+xtab
+absolute_metrics = g.list_absolute_metrics(xtab)
+# View calculated counts across sample population groups
+xtab[[col for col in xtab.columns if col not in absolute_metrics]]
+
+# View calculated absolute metrics for each sample population group
+# FOR: false omission rate: FN / (FN + TN)
+# (how many of the people we labeled negative were false negatives (really postive)?)
+# FDR: false discovery rate: FP / (FP + TP)
+# (how many of the people we labeled positive were false positives?)
+xtab[['attribute_name', 'attribute_value'] + absolute_metrics].round(2)
+
+aqp = Plot()
+fnr = aqp.plot_group_metric(xtab, 'fnr')
+# FNR: FN / (True Condition Negative) = FN / (FN + TP)
+# (how many of the true positives did we mistakenly say were negative?)
+# So graph above says we said half the true positives for white ppl where
+# mistakenly predicted negative.
+
+
+# Visualizing multiple user-specified absolute group metrics across all population groups
+p = aqp.plot_group_metric_all(xtab, metrics=['ppr','pprev','fnr','fpr'], ncols=4)
+a = aqp.plot_group_metric_all(xtab, ncols=3)
+
+# Disparity
+b = Bias()
+bdf = b.get_disparity_predefined_groups(xtab, original_df=df, ref_groups_dict={'race':'w'}, alpha=0.05, mask_significance=True)
+bdf.style
+calculated_disparities = b.list_disparities(bdf)
+disparity_significance = b.list_significance(bdf)
+calculated_disparities
+disparity_significance
+bdf[['attribute_name', 'attribute_value'] +  calculated_disparities + disparity_significance]
+aqp.plot_disparity(bdf, group_metric='fpr_disparity', attribute_name='race', significance_alpha=0.2)
+
+
+hbdf = b.get_disparity_predefined_groups(xtab, original_df=df,
+                                         ref_groups_dict={'race':'w'},
+                                         alpha=0.5,
+                                         mask_significance=False)
+aqp.plot_disparity(hbdf, group_metric='fpr_disparity', attribute_name='race', significance_alpha=0.05)
+majority_bdf = b.get_disparity_major_group(xtab, original_df=df, mask_significance=True)
+majority_bdf[['attribute_name', 'attribute_value'] +  calculated_disparities + disparity_significance]
+j = aqp.plot_disparity_all(majority_bdf, metrics=['precision_disparity'], significance_alpha=0.5)
+tm_capped = aqp.plot_disparity_all(hbdf, attributes=['race'], metrics = 'all', significance_alpha=0.05)
+
+f = Fairness()
+fdf = f.get_group_value_fairness(bdf)
+parity_detrminations = f.list_parities(fdf)
+fdf[['attribute_name', 'attribute_value'] + absolute_metrics + calculated_disparities + parity_detrminations].style
+fg = aqp.plot_fairness_group_all(fdf, ncols=5, metrics = "all")
+n_tm = aqp.plot_fairness_disparity_all(fdf, attributes=['race'],
+                                       significance_alpha=0.05)
+                                       

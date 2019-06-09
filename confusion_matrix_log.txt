@@ -1,5 +1,0 @@
-
-
-
-Current split: [datetime.datetime(2007, 1, 1, 0, 0), datetime.datetime(2007, 12, 31, 0, 0), datetime.datetime(2009, 1, 1, 0, 0), datetime.datetime(2009, 12, 31, 0, 0)]
-Current params: {'n_neighbors': [15, 25], 'weights': ['uniform', 'distance'], 'algorithm': ['ball_tree']}

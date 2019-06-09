@@ -614,13 +614,15 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
                         with open("confusion_matrix_log.txt", "a+") as cm_log:
                             cm_log.write('\n\n\nCurrent split: ' + str(timeframe))
-                            cm_log.write('\nCurrent params: ' + str(parameter_values))
+                            cm_log.write('\nCurrent params: ' + str(p))
                             for k_val in k_list:
                                 cm_log.write('\nthreshold is ' + str(k_val))
                                 pred_class = pd.Series([0] * len(y_pred_probs_sorted))
                                 pred_class.loc[0:int(k_val / 100 * len(y_pred_probs_sorted))] = 1
                                 cm = metrics.confusion_matrix(y_test_sorted, pred_class)
-                                cm_log.write('|T neg, F pos|\n|F neg, T pos|\n' + str(cm))
+                                cm_log.write('\nNumber of people predicted 1: ' + str(pred_class.sum()))
+                                cm_log.write(('\nDescription of y pred probs:\n' + str(pd.Series(y_pred_probs).describe())))
+                                cm_log.write('\n|T neg, F pos|\n|F neg, T pos|\n' + str(cm))
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
                                                            classifier,

@@ -616,7 +616,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                             cm_log.write('\n\n\nCurrent split: ' + str(timeframe))
                             cm_log.write('\nCurrent params: ' + str(parameter_values))
                             for k_val in k_list:
-                                cm_log.write('\nthreshold is ', str(k_val))
+                                cm_log.write('\nthreshold is ' + str(k_val))
                                 pred_class = pd.Series([0] * len(y_pred_probs_sorted))
                                 pred_class.loc[0:int(k_val / 100 * len(y_pred_probs_sorted))] = 1
                                 cm = metrics.confusion_matrix(y_test_sorted, pred_class)

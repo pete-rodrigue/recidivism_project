@@ -21,7 +21,9 @@ from sklearn.metrics import precision_recall_curve
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from sklearn.model_selection import ParameterGrid
+import pickle
 
+print('\tmodules loaded\t', datetime.now())
 pd.options.display.max_columns = 100
 
                     # READ AND CLEAN OFNT3CE1
@@ -280,9 +282,10 @@ def make_count_vars_to_merge_onto_master_df(data, name_of_col):
     '''
     to_add = pd.get_dummies(
             data,
-            columns=[name_of_col]).groupby(
+            columns=[name_of_col], sparse=True).groupby(
             ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
             as_index=False).sum()
+    print('\t\t\tgot dummies')
     filter_col = [col for col in to_add
                   if col.startswith(name_of_col + "_")]
     to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
@@ -296,9 +299,11 @@ def merge_counts_variables(df, list_of_vars):
     subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
 
     for var in list_of_vars:
+        print('\t\t\ton var ', var)
         to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
         df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
                                               'COMMITMENT_PREFIX'], how='left')
+        print('\t\t\tdid merge for var', var)
 
     return df
 
@@ -320,16 +325,16 @@ def create_number_prev_incarcerations(df):
     return df
 
 
-
+print('\tfunctions loaded\t', datetime.now())
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-# offender_filepath = "ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-# inmate_filepath = "ncdoc_data/data/preprocessed/INMT4BB1.csv"
-inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
-# demographics_filepath = "ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
+offender_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+# offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+# inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
+demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+# demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
 begin_date = '2007-01-01'
 end_date = '2018-01-01'
 
@@ -337,12 +342,13 @@ end_date = '2018-01-01'
                         # SCRIPT - Merge and Format Data
 ################################################################################
 OFNT3CE1 = clean_offender_data(offender_filepath)
+print('\tOFNT3CE1 data cleaned and loaded\t', datetime.now())
 INMT4BB1 = clean_inmate_data(inmate_filepath, begin_date, end_date)
-# OFNT3CE1.to_csv("OFNT3CE1_2007_01_01_2018_01_01.csv")
-# INMT4BB1.to_csv("INMT4BB1_2007_01_01_2018_01_01.csv")
+print('\tINMT4BB1 data cleaned and loaded\t', datetime.now())
 merged = merge_offender_inmate_df(OFNT3CE1, INMT4BB1)
+print('\tOFNT3CE1 and INMT4BB1 merged\t', datetime.now())
 crime_w_release_date = collapse_counts_to_crimes(merged, begin_date)
-print("read in")
+print("\t collapsed counts to crimes done\t", datetime.now())
 
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['release_date_with_imputation'] > pd.to_datetime(begin_date)]
 df_to_ml_pipeline = crime_w_release_date.loc[crime_w_release_date['SENTENCE_EFFECTIVE(BEGIN)_DATE'] < pd.to_datetime(end_date)]
@@ -351,12 +357,13 @@ df_to_ml_pipeline = df_to_ml_pipeline.reset_index()
 #add recidivate label
 crimes_w_time_since_release_date = create_time_to_next_incarceration_df(df_to_ml_pipeline)
 crimes_w_recidviate_label= create_recidvate_label(crimes_w_time_since_release_date, 365)
-crimes_w_recidviate_label['recidivate'].describe()
-
+# crimes_w_recidviate_label['recidivate'].describe()
+print('\trecidivate label created\t', datetime.now())
 OFNT3AA1 = load_demographic_data(demographics_filepath)
 crimes_w_demographic = crimes_w_recidviate_label.merge(OFNT3AA1,
                         on='OFFENDER_NC_DOC_ID_NUMBER',
                         how='left')
+print('\tdemographic data loaded and merged on\t', datetime.now())
 #add age feature
 crimes_w_demographic['age_at_crime'] = (crimes_w_demographic['SENTENCE_EFFECTIVE(BEGIN)_DATE'] -
                                 pd.to_datetime(crimes_w_demographic['OFFENDER_BIRTH_DATE'])) / np.timedelta64(365, 'D')
@@ -365,6 +372,7 @@ crimes_w_demographic['years_in_prison'] = (crimes_w_demographic['release_date_wi
 crimes_w_demographic = df_w_age_at_first_incarceration(crimes_w_demographic)
 #Add variables for number of previous incarcerations
 crimes_w_demographic = create_number_prev_incarcerations(crimes_w_demographic)
+print('\ttime variables added\t', datetime.now())
 # add count variables for attributes of each crime
 list_of_vars_to_make_count_vars_with = ['COUNTY_OF_CONVICTION_CODE',
                                         'PUNISHMENT_TYPE_CODE',
@@ -376,7 +384,9 @@ final_df = merge_counts_variables(crimes_w_demographic,
                                   list_of_vars_to_make_count_vars_with)
 
 final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
-
+print('\tabout to pickle final dataset\t', datetime.now())
+final_df.to_pickle("pickled_final_df.pkl")
+print('\tabout to run models\t', datetime.now())
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
 ################################################################################
@@ -390,25 +400,22 @@ final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
 # temp_split = bg_ml.temporal_dates(begin_date, end_date, prediction_windows, 0)
 #note, we will have to start with the last end date possible before we collapse
 #the counts by crime
-
-datetime.strptime(date_str3, '%m-%d-%Y')
-
-temp_split = [[datetime.datetime.strptime('2007-01-01', '%Y-%m-%d'),
-              datetime.datetime.strptime('2007-12-31', '%Y-%m-%d'),
-              datetime.datetime.strptime('2009-01-01', '%Y-%m-%d'),
-              datetime.datetime.strptime('2009-12-31', '%Y-%m-%d')],
-              [datetime.datetime.strptime('2011-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2011-12-31', '%Y-%m-%d'),
-               datetime.datetime.strptime('2013-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2013-12-31', '%Y-%m-%d')],
-              [datetime.datetime.strptime('2015-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2015-12-31', '%Y-%m-%d'),
-               datetime.datetime.strptime('2017-01-01', '%Y-%m-%d'),
-               datetime.datetime.strptime('2017-12-31', '%Y-%m-%d')]]
+temp_split = [[datetime.strptime('2007-01-01', '%Y-%m-%d'),
+              datetime.strptime('2007-12-31', '%Y-%m-%d'),
+              datetime.strptime('2009-01-01', '%Y-%m-%d'),
+              datetime.strptime('2009-12-31', '%Y-%m-%d')],
+              [datetime.strptime('2011-01-01', '%Y-%m-%d'),
+               datetime.strptime('2011-12-31', '%Y-%m-%d'),
+               datetime.strptime('2013-01-01', '%Y-%m-%d'),
+               datetime.strptime('2013-12-31', '%Y-%m-%d')],
+              [datetime.strptime('2015-01-01', '%Y-%m-%d'),
+               datetime.strptime('2015-12-31', '%Y-%m-%d'),
+               datetime.strptime('2017-01-01', '%Y-%m-%d'),
+               datetime.strptime('2017-12-31', '%Y-%m-%d')]]
 
 temp_split
 ## ML Pipeline parameters
-models_to_run = ['DT', 'RF', 'LR', 'BG']
+models_to_run = ['KNN']
 k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
 
 classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
@@ -422,12 +429,12 @@ classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1)
         }
 
 parameters = {
-    'RF':{'n_estimators': [10,100], 'max_depth': [20, 100], 'max_features': ['sqrt','log2'],'min_samples_split': [2,10], 'n_jobs': [-1]},
+    'RF':{'n_estimators': [10, 100], 'max_depth': [10, 20, 50], 'max_features': ['sqrt','log2'], 'min_samples_split': [10], 'n_jobs': [-1]},
     'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
-    'DT': {'criterion': ['gini'], 'max_depth': [1,10,20,100],'min_samples_split': [2,5,10]},
+    'DT': {'criterion': ['gini'], 'max_depth': [1, 10, 20, 100], 'min_samples_split': [2, 5, 10]},
     'SVM': {'C': [0.01]},
-    'KNN': {'n_neighbors': [25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
+    'KNN': {'n_neighbors': [15, 25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
     'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},
     'BG': {'n_estimators': [10], 'max_samples': [.5]}}
 
@@ -456,7 +463,7 @@ categorical_list = ['OFFENDER_GENDER_CODE', 'OFFENDER_RACE_CODE',
 outfile = 'test_pipeline.csv'
 temp_split_sub = temp_split[0]
 
-print("training models")
+print("\ttraining models\t", datetime.now())
 results_df, params = bg_ml.run_models(models_to_run,
                                       classifiers,
                                       parameters,

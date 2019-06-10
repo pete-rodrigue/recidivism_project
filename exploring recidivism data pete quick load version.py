@@ -85,7 +85,7 @@ parameters = {
     'RF':{'n_estimators': [10, 100], 'max_depth': [10, 20, 50], 'max_features': ['sqrt','log2'], 'min_samples_split': [10], 'n_jobs': [-1]},
     'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
-    'DT': {'criterion': ['gini'], 'max_depth': [1, 10, 20, 100], 'min_samples_split': [2, 5, 10]},
+    'DT': {'criterion': ['gini'], 'max_depth': [1], 'min_samples_split': [2]},
     'SVM': {'C': [0.01]},
     'KNN': {'n_neighbors': [15, 25],'weights': ['uniform','distance'],'algorithm': ['ball_tree']},
     'GB': {'n_estimators': [10], 'learning_rate': [0.1,0.5], 'subsample': [0.1,0.5], 'max_depth': [5]},

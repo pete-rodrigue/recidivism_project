@@ -610,11 +610,14 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                             y_pred_probs = classifier.fit(x_train, y_train).decision_function(x_test)
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
-                        y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
+                        # if i == 2:
+                        #     pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs.csv')
+                        #     pd.Series(y_test).to_csv('looking_at_y_test.csv')
+                        y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True, key=lambda x: x[0]))
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
                         with open("confusion_matrix_log.txt", "a+") as cm_log:
-                            cm_log.write('\n\n\nCurrent split: ' + str(timeframe))
-                            cm_log.write('\nCurrent params: ' + str(p))
+                            cm_log.write('\n\n\n\tCurrent split: ' + str(timeframe))
+                            cm_log.write('\n\tCurrent params: ' + str(p))
                             for k_val in k_list:
                                 cm_log.write('\nthreshold is ' + str(k_val))
                                 pred_class = pd.Series([0] * len(y_pred_probs_sorted))

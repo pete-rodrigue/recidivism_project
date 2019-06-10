@@ -246,4 +246,9 @@ fdf[['attribute_name', 'attribute_value'] + absolute_metrics + calculated_dispar
 fg = aqp.plot_fairness_group_all(fdf, ncols=5, metrics = "all")
 n_tm = aqp.plot_fairness_disparity_all(fdf, attributes=['race'],
                                        significance_alpha=0.05)
-                                       
+
+
+
+a = zip(*sorted(zip([.7, .7, .7, .2], [.25, 1.5, 1, 0]), reverse=True, key=lambda x: x[0]))
+for i in a:
+    print(i)

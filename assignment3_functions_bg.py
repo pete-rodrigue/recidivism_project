@@ -560,7 +560,10 @@ def print_confusion_matrix(cm):
     print(cm)
 
 
-def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_split, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop, vars_to_drop_dates, k_list, outfile):
+def run_models(models_to_run, classifiers, parameters, df, selected_y,
+               temp_split, time_var, categorical_list, to_dummy_list,
+               continuous_impute_list, vars_to_drop, vars_to_drop_dates,
+               k_list, outfile, export_data=False):
     '''
     Adapted from Rayid's magic loops repository.
     This function loops through all the models and classifiers and produces a grid with evaluation metrics at 1%, 2%, 5%, 10%, 20%, 30%, and 50% of the population.
@@ -597,6 +600,20 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
         x_train, x_test, y_train, y_test = temporal_split(df, time_var, selected_y, train_start, train_end, test_start, test_end, vars_to_drop_dates)
         x_train, x_test, features = pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop)
+        # x_train = x_train[features].drop(['OFFENDER_RACE_CODE_OTHER',
+        #                                   'OFFENDER_RACE_CODE_BLACK',
+        #                                   'OFFENDER_RACE_CODE_UNKNOWN',
+        #                                   'OFFENDER_RACE_CODE_ASIAN/ORTL',
+        #                                   'OFFENDER_RACE_CODE_INDIAN',
+        #                                   'OFFENDER_RACE_CODE_WHITE',
+        #                                   'OFFENDER_GENDER_CODE_FEMALE', 'OFFENDER_GENDER_CODE_MALE'] , axis=1)
+        # x_test = x_test[features].drop(['OFFENDER_RACE_CODE_OTHER',
+        #                                   'OFFENDER_RACE_CODE_BLACK',
+        #                                   'OFFENDER_RACE_CODE_UNKNOWN',
+        #                                   'OFFENDER_RACE_CODE_ASIAN/ORTL',
+        #                                   'OFFENDER_RACE_CODE_INDIAN',
+        #                                   'OFFENDER_RACE_CODE_WHITE',
+        #                                   'OFFENDER_GENDER_CODE_FEMALE', 'OFFENDER_GENDER_CODE_MALE'] , axis=1)
         x_train = x_train[features]
         x_test = x_test[features]
         for index, classifier in enumerate([classifiers[x] for x in models_to_run]):
@@ -610,12 +627,16 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                             y_pred_probs = classifier.fit(x_train, y_train).decision_function(x_test)
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
-                        # if i == 2:
-                        #     pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs.csv')
-                        #     pd.Series(y_test).to_csv('looking_at_y_test.csv')
+                        if export_data and i == 2:
+                            # x_test.to_csv('looking_at_x_test_no_race_gen.csv')
+                            # pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs_no_race_gen.csv')
+                            # pd.Series(y_test).to_csv('looking_at_y_test_no_race_gen.csv')
+                            x_test.to_csv('looking_at_x_test.csv')
+                            pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs.csv')
+                            pd.Series(y_test).to_csv('looking_at_y_test.csv')
                         y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True, key=lambda x: x[0]))
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
-                        with open("confusion_matrix_log.txt", "a+") as cm_log:
+                        with open("confusion_matrix_log_no_race_gen.txt", "a+") as cm_log:
                             cm_log.write('\n\n\n\tCurrent split: ' + str(timeframe))
                             cm_log.write('\n\tCurrent params: ' + str(p))
                             for k_val in k_list:

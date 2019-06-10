@@ -68,7 +68,7 @@ temp_split = [[datetime.strptime('2007-01-01', '%Y-%m-%d'),
 
 temp_split
 ## ML Pipeline parameters
-models_to_run = ['DT']
+models_to_run = ['RF']
 k_list = [1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0]
 
 classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1),
@@ -82,7 +82,7 @@ classifiers = {'RF': ensemble.RandomForestClassifier(n_estimators=50, n_jobs=-1)
         }
 
 parameters = {
-    'RF':{'n_estimators': [10, 100], 'max_depth': [10, 20, 50], 'max_features': ['sqrt','log2'], 'min_samples_split': [10], 'n_jobs': [-1]},
+    'RF':{'n_estimators': [100], 'max_depth': [15], 'max_features': ['sqrt'], 'min_samples_split': [10], 'n_jobs': [-1]},
     'LR': { 'penalty': ['l1','l2'], 'C': [0.001,0.1,1,10]},
     'AB': { 'algorithm': ['SAMME'], 'n_estimators': [1]},
     'DT': {'criterion': ['gini'], 'max_depth': [1], 'min_samples_split': [2]},
@@ -129,4 +129,5 @@ results_df, params = bg_ml.run_models(models_to_run,
                                       vars_to_drop_all,
                                       vars_to_drop_dates,
                                       k_list,
-                                      outfile)
+                                      outfile,
+                                      export_data=True)

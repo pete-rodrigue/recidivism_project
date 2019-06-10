@@ -321,13 +321,28 @@ def evaluation_scores_at_k(y_test, y_pred_scores, k):
     Returns:
         precision, accuracy, recall, f1 at k.
     '''
-    y_pred_at_k = generate_binary_at_k(y_pred_scores, k)
-    precision_at_k = metrics.precision_score(y_test, y_pred_at_k)
-    accuracy_at_k = metrics.accuracy_score(y_test, y_pred_at_k)
-    recall_at_k = metrics.recall_score(y_test, y_pred_at_k)
+    #new precision score
+    df = pd.DataFrame()
+    df['y_test'] = pd.Series(y_test)
+    df['score'] = pd.Series(y_pred_scores)
+    df['pred'] = 0
+    cutoff = df['score'].quantile(k/100, interpolation='nearest')
+    df.loc[df['score'] >= cutoff, 'pred' ] = 1
+
+    df['tp'] = np.where((df['pred'] == 1) & (df['y_test'] == 1), 1, 0)
+    df['tn'] = np.where((df['pred'] == 0) & (df['y_test'] == 0), 1, 0)
+    precision_at_k = df['tp'].sum() / df['pred'].sum()
+    actual_percent_of_population = df['pred'].mean()
+
+    #calculate accuarcy at k
+    recall_at_k = df['tp'].sum()/df['y_test'].sum()
+    accuracy_at_k = (df['tp'].sum() + df['tn'].sum())/len(y_test)
+    # accuarcy_at_k =
+    # print('precision at ', percentile, ' is ', round(temp_precision, 4), ' actual percent: ', round(1 - actual_percent, 6))
+
     f1_at_k = 2 * (precision_at_k * recall_at_k) / (precision_at_k + recall_at_k)
 
-    return precision_at_k, accuracy_at_k, recall_at_k, f1_at_k
+    return precision_at_k, accuracy_at_k, recall_at_k, f1_at_k, actual_percent_of_population
 
 
 # def precision_at_k(y_true, y_scores, k):
@@ -544,23 +559,20 @@ def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
     # with open("Output.txt","w") as text_file:
     #     text_file.write("error:{}".format(type(k_list[0])))
     for k in k_list:
-        precision, accuracy, recall, f1 = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
+        precision, accuracy, recall, f1, actual_percent = evaluation_scores_at_k(y_test_sorted, y_pred_probs_sorted, k)
         full_list.append(precision)
         full_list.append(accuracy)
         full_list.append(recall)
         full_list.append(f1)
+        full_list.append(actual_percent)
 
     return full_list
 
 
-def print_confusion_matrix(cm):
-    '''prints a confusion matrix'''
-    print('confusion matrix')
-    print('|T neg, F pos|\n|F neg, T pos|')
-    print(cm)
-
-
-def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_split, time_var, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop, vars_to_drop_dates, k_list, outfile):
+def run_models(models_to_run, classifiers, parameters, df, selected_y,
+               temp_split, time_var, categorical_list, to_dummy_list,
+               continuous_impute_list, vars_to_drop, vars_to_drop_dates,
+               k_list, outfile, export_data=False):
     '''
     Adapted from Rayid's magic loops repository.
     This function loops through all the models and classifiers and produces a grid with evaluation metrics at 1%, 2%, 5%, 10%, 20%, 30%, and 50% of the population.
@@ -586,8 +598,13 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         params: model parameters
     '''
     results_df = pd.DataFrame(columns=('train_start', 'train_end', 'test_start', 'test_end', 'model_type', 'classifier', 'parameter', 'train_size', 'test_size', 'auc-roc',
-        'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10',
-        'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50'))
+        'p_at_1', 'a_at_1', 'r_at_1', 'f1_at_1', 'perc_pop_at_1',
+        'p_at_2', 'a_at_2', 'r_at_2', 'f1_at_2', 'perc_pop_at_2',
+        'p_at_5', 'a_at_5', 'r_at_5', 'f1_at_5', 'perc_pop_at_5',
+        'p_at_10', 'a_at_10', 'r_at_10', 'f1_at_10', 'perc_pop_at_10',
+        'p_at_20', 'a_at_20', 'r_at_20', 'f1_at_20', 'perc_pop_at_20',
+        'p_at_30', 'a_at_30', 'r_at_30', 'f1_at_30', 'perc_pop_at_30',
+        'p_at_50', 'a_at_50', 'r_at_50', 'f1_at_50', 'perc_pop_at_50' ))
 
     params = []
     i = 1
@@ -597,6 +614,20 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
         train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
         x_train, x_test, y_train, y_test = temporal_split(df, time_var, selected_y, train_start, train_end, test_start, test_end, vars_to_drop_dates)
         x_train, x_test, features = pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop)
+        # x_train = x_train[features].drop(['OFFENDER_RACE_CODE_OTHER',
+        #                                   'OFFENDER_RACE_CODE_BLACK',
+        #                                   'OFFENDER_RACE_CODE_UNKNOWN',
+        #                                   'OFFENDER_RACE_CODE_ASIAN/ORTL',
+        #                                   'OFFENDER_RACE_CODE_INDIAN',
+        #                                   'OFFENDER_RACE_CODE_WHITE',
+        #                                   'OFFENDER_GENDER_CODE_FEMALE', 'OFFENDER_GENDER_CODE_MALE'] , axis=1)
+        # x_test = x_test[features].drop(['OFFENDER_RACE_CODE_OTHER',
+        #                                   'OFFENDER_RACE_CODE_BLACK',
+        #                                   'OFFENDER_RACE_CODE_UNKNOWN',
+        #                                   'OFFENDER_RACE_CODE_ASIAN/ORTL',
+        #                                   'OFFENDER_RACE_CODE_INDIAN',
+        #                                   'OFFENDER_RACE_CODE_WHITE',
+        #                                   'OFFENDER_GENDER_CODE_FEMALE', 'OFFENDER_GENDER_CODE_MALE'] , axis=1)
         x_train = x_train[features]
         x_test = x_test[features]
         for index, classifier in enumerate([classifiers[x] for x in models_to_run]):
@@ -610,30 +641,28 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
                             y_pred_probs = classifier.fit(x_train, y_train).decision_function(x_test)
                         else:
                             y_pred_probs = classifier.fit(x_train, y_train).predict_proba(x_test)[:,1]
-                        y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
+                        if export_data and i == 2:
+                            # x_test.to_csv('looking_at_x_test_no_race_gen.csv')
+                            # pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs_no_race_gen.csv')
+                            # pd.Series(y_test).to_csv('looking_at_y_test_no_race_gen.csv')
+                            x_test.to_csv('looking_at_x_test.csv')
+                            pd.Series(y_pred_probs).to_csv('looking_at_y_pred_probs.csv')
+                            pd.Series(y_test).to_csv('looking_at_y_test.csv')
+                        y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True, key=lambda x: x[0]))
                         metric_list = evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted)
-                        with open("confusion_matrix_log.txt", "a+") as cm_log:
-                            cm_log.write('\n\n\nCurrent split: ' + str(timeframe))
-                            cm_log.write('\nCurrent params: ' + str(parameter_values))
-                            for k_val in k_list:
-                                cm_log.write('\nthreshold is ' + str(k_val))
-                                pred_class = pd.Series([0] * len(y_pred_probs_sorted))
-                                pred_class.loc[0:int(k_val / 100 * len(y_pred_probs_sorted))] = 1
-                                cm = metrics.confusion_matrix(y_test_sorted, pred_class)
-                                cm_log.write('|T neg, F pos|\n|F neg, T pos|\n' + str(cm))
                         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end,
                                                            models_to_run[index],
                                                            classifier,
                                                            p,
                                                            y_train.shape[0], y_test.shape[0],
                                                            metrics.roc_auc_score(y_test_sorted, y_pred_probs_sorted),
-                                                           metric_list[0], metric_list[1], metric_list[2], metric_list[3],
-                                                           metric_list[4], metric_list[5], metric_list[6], metric_list[7],
-                                                           metric_list[8], metric_list[9], metric_list[10], metric_list[11],
-                                                           metric_list[12], metric_list[13], metric_list[14], metric_list[15],
-                                                           metric_list[16], metric_list[17], metric_list[18], metric_list[19],
-                                                           metric_list[20], metric_list[21], metric_list[22], metric_list[23],
-                                                           metric_list[24], metric_list[25], metric_list[26], metric_list[27]]
+                                                           metric_list[0], metric_list[1], metric_list[2], metric_list[3], metric_list[4],
+                                                           metric_list[5], metric_list[6], metric_list[7],metric_list[8], metric_list[9],
+                                                           metric_list[10], metric_list[11], metric_list[12], metric_list[13], metric_list[14],
+                                                           metric_list[15], metric_list[16], metric_list[17], metric_list[18], metric_list[19],
+                                                           metric_list[20], metric_list[21], metric_list[22], metric_list[23], metric_list[24],
+                                                           metric_list[25], metric_list[26], metric_list[27],  metric_list[28], metric_list[29],
+                                                           metric_list[30], metric_list[31], metric_list[32],  metric_list[33], metric_list[34]]
 
                     except IndexError as e:
                         print('Error:',e)
@@ -641,7 +670,7 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y, temp_spli
 
         results_df.loc[len(results_df)] = [train_start, train_end, test_start, test_end, "baseline", '', '', '', '',
                         y_test.sum()/len(y_test), '', '', '', '', '', '', '', '', '', '', '', '', '','', '', '', '',
-                        '', '', '', '', '', '', '', '', '', '', '']
+                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
 
 
         results_df.to_csv(outfile)

@@ -1,5 +1,349 @@
 
 
 
-Current split: [datetime.datetime(2007, 1, 1, 0, 0), datetime.datetime(2007, 12, 31, 0, 0), datetime.datetime(2009, 1, 1, 0, 0), datetime.datetime(2009, 12, 31, 0, 0)]
-Current params: {'n_neighbors': [15, 25], 'weights': ['uniform', 'distance'], 'algorithm': ['ball_tree']}
+	Current split: [datetime.datetime(2007, 1, 1, 0, 0), datetime.datetime(2007, 12, 31, 0, 0), datetime.datetime(2009, 1, 1, 0, 0), datetime.datetime(2009, 12, 31, 0, 0)]
+	Current params: {'max_depth': 15, 'max_features': 'sqrt', 'min_samples_split': 10, 'n_estimators': 100, 'n_jobs': -1}
+threshold is 1.0
+Number of people predicted 1: 181
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[16181   115]
+ [ 1650    66]]
+threshold is 2.0
+Number of people predicted 1: 361
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[16043   253]
+ [ 1608   108]]
+threshold is 5.0
+Number of people predicted 1: 901
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[15624   672]
+ [ 1487   229]]
+threshold is 10.0
+Number of people predicted 1: 1802
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[14925  1371]
+ [ 1285   431]]
+threshold is 20.0
+Number of people predicted 1: 3603
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[13406  2890]
+ [ 1003   713]]
+threshold is 30.0
+Number of people predicted 1: 5404
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[11828  4468]
+ [  780   936]]
+threshold is 50.0
+Number of people predicted 1: 9007
+Description of y pred probs:
+count    18012.000000
+mean         0.116975
+std          0.039493
+min          0.011890
+25%          0.094440
+50%          0.111646
+75%          0.139600
+max          0.324357
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[8577 7719]
+ [ 428 1288]]
+
+
+	Current split: [datetime.datetime(2011, 1, 1, 0, 0), datetime.datetime(2011, 12, 31, 0, 0), datetime.datetime(2013, 1, 1, 0, 0), datetime.datetime(2013, 12, 31, 0, 0)]
+	Current params: {'max_depth': 15, 'max_features': 'sqrt', 'min_samples_split': 10, 'n_estimators': 100, 'n_jobs': -1}
+threshold is 1.0
+Number of people predicted 1: 160
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[14313    91]
+ [ 1453    69]]
+threshold is 2.0
+Number of people predicted 1: 319
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[14206   198]
+ [ 1401   121]]
+threshold is 5.0
+Number of people predicted 1: 797
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[13866   538]
+ [ 1263   259]]
+threshold is 10.0
+Number of people predicted 1: 1593
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[13265  1139]
+ [ 1068   454]]
+threshold is 20.0
+Number of people predicted 1: 3186
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[11944  2460]
+ [  796   726]]
+threshold is 30.0
+Number of people predicted 1: 4778
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[10590  3814]
+ [  558   964]]
+threshold is 50.0
+Number of people predicted 1: 7964
+Description of y pred probs:
+count    15926.000000
+mean         0.076756
+std          0.029803
+min          0.012011
+25%          0.057243
+50%          0.072856
+75%          0.091637
+max          0.277225
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[7727 6677]
+ [ 235 1287]]
+
+
+	Current split: [datetime.datetime(2015, 1, 1, 0, 0), datetime.datetime(2015, 12, 31, 0, 0), datetime.datetime(2017, 1, 1, 0, 0), datetime.datetime(2017, 12, 31, 0, 0)]
+	Current params: {'max_depth': 15, 'max_features': 'sqrt', 'min_samples_split': 10, 'n_estimators': 100, 'n_jobs': -1}
+threshold is 1.0
+Number of people predicted 1: 165
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[15567   123]
+ [  693    42]]
+threshold is 2.0
+Number of people predicted 1: 329
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[15437   253]
+ [  659    76]]
+threshold is 5.0
+Number of people predicted 1: 822
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[15032   658]
+ [  571   164]]
+threshold is 10.0
+Number of people predicted 1: 1643
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[14340  1350]
+ [  442   293]]
+threshold is 20.0
+Number of people predicted 1: 3286
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[12867  2823]
+ [  272   463]]
+threshold is 30.0
+Number of people predicted 1: 4928
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[11357  4333]
+ [  140   595]]
+threshold is 50.0
+Number of people predicted 1: 8213
+Description of y pred probs:
+count    16425.000000
+mean         0.088433
+std          0.075399
+min          0.008841
+25%          0.033155
+50%          0.048445
+75%          0.121784
+max          0.433904
+dtype: float64
+|T neg, F pos|
+|F neg, T pos|
+[[8187 7503]
+ [  25  710]]

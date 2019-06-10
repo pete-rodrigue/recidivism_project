@@ -21,7 +21,7 @@ from sklearn.metrics import precision_recall_curve
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from sklearn.model_selection import ParameterGrid
-import pickle
+# import pickle
 
 print('\tmodules loaded\t', datetime.now())
 pd.options.display.max_columns = 100
@@ -282,7 +282,7 @@ def make_count_vars_to_merge_onto_master_df(data, name_of_col):
     '''
     to_add = pd.get_dummies(
             data,
-            columns=[name_of_col], sparse=True).groupby(
+            columns=[name_of_col]).groupby(
             ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
             as_index=False).sum()
     print('\t\t\tgot dummies')
@@ -329,12 +329,12 @@ print('\tfunctions loaded\t', datetime.now())
 ################################################################################
                             # SET GLOBALS
 ################################################################################
-offender_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
-# offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
-inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
-# inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
-demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
-# demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
+# offender_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3CE1.csv"
+offender_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3CE1.csv'
+# inmate_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/INMT4BB1.csv"
+inmate_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/INMT4BB1.csv'
+# demographics_filepath = "C:/Users/edwar.WJM-SONYLAPTOP/Desktop/ncdoc_data/data/preprocessed/OFNT3AA1.csv"
+demographics_filepath = '/Users/bhargaviganesh/Documents/ncdoc_data/data/preprocessed/OFNT3AA1.csv'
 begin_date = '2007-01-01'
 end_date = '2018-01-01'
 
@@ -383,10 +383,11 @@ list_of_vars_to_make_count_vars_with = ['COUNTY_OF_CONVICTION_CODE',
 final_df = merge_counts_variables(crimes_w_demographic,
                                   list_of_vars_to_make_count_vars_with)
 
+final_df.columns
 final_df  = final_df.loc[final_df['crime_felony_or_misd']=='FELON',]
-print('\tabout to pickle final dataset\t', datetime.now())
-final_df.to_pickle("pickled_final_df.pkl")
-print('\tabout to run models\t', datetime.now())
+# print('\tabout to pickle final dataset\t', datetime.now())
+# final_df.to_pickle("pickled_final_df.pkl")
+# print('\tabout to run models\t', datetime.now())
 ################################################################################
                 # SCRIPT - Set pipeline parameters and train model
 ################################################################################

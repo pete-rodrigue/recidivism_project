@@ -1,4 +1,4 @@
-
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from aequitas.group import Group
@@ -32,8 +32,35 @@ df.rename(columns={0: 'race', 1: 'gender'}, inplace=True)
 df['race'] = df['race'].str.replace('OFFENDER_RACE_CODE_', '', regex=False)
 df['gender'] = df['gender'].str.replace('OFFENDER_GENDER_CODE_', '', regex=False)
 df.shape
+df.head()
 
-cutoff = df['score'].quantile(.95)
+
+df.loc[df['score'].duplicated(), 'score']
+unique_scores = np.sort(df['score'].unique())[::-1]
+unique_scores
+nrows_of_df = df.shape[0]
+df['precision_score'] = 0
+
+# for index, given_score in enumerate(unique_scores):
+#     temp_df = df.loc[df['score'] >= given_score]
+#     temp_precision = temp_df['label_value'].mean()
+#     df.loc[df['score'] == given_score, 'precision_score'] = temp_precision
+
+
+for percentile in [.5, .7, .8, .85, .9, .95, .99]:
+    cutoff = df['score'].quantile(percentile, interpolation='nearest')
+    temp_df = df.loc[df['score'] >= cutoff, 'label_value']
+    temp_precision = temp_df.mean()
+    actual_percent = temp_df.shape[0] / df.shape[0]
+    print('precision at ', percentile, ' is ', round(temp_precision, 4), ' actual percent: ', round(1 - actual_percent, 6))
+
+
+cutoff = df['score'].quantile(.99, interpolation='nearest')
+df.loc[df['score'] == cutoff, ['precision_score', 'score']]
+df.loc[df['score'] >= cutoff].shape[0] / nrows_of_df
+
+# check for duplicate scores here
+cutoff = df['score'].quantile(.95, interpolation='nearest')
 df['new_score'] = 0
 df.loc[df['score'] >= cutoff, 'new_score'] = 1
 df.drop('score', axis=1, inplace=True)
@@ -83,7 +110,7 @@ disparity_significance = b.list_significance(bdf.style)
 calculated_disparities
 disparity_significance
 bdf[['attribute_name', 'attribute_value'] +  calculated_disparities + disparity_significance]
-aqp.plot_disparity(bdf, group_metric='fpr_disparity', attribute_name='race', significance_alpha=0.2)
+aqp.plot_disparity(bdf, group_metric='fpr_disparity', attribute_name='race', significance_alpha=0)
 
 
 hbdf = b.get_disparity_predefined_groups(xtab, original_df=df,

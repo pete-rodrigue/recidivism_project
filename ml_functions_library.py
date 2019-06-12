@@ -17,6 +17,60 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from sklearn.model_selection import ParameterGrid
 
+def make_count_vars_to_merge_onto_master_df(data, name_of_col):
+    '''
+    Takes a source dataframe and a column name and returns a dataframe
+    that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
+    along with a count variable for the column of interest. Here we dummify
+    variables outside of the merged data that are attributes of a crime, and
+    need to be collapsed to the crime level to be added to the main dataset.
+    The rest of the dummy variables are created after doing the train, test splits.
+
+    Inputs:
+        pandas dataframe collapsed by crime
+
+    Returns:
+        pandas dataframe with select counts variables added
+    '''
+    to_add = pd.get_dummies(
+            data,
+            columns=[name_of_col]).groupby(
+            ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
+            as_index=False).sum()
+    print('\t\t\tgot dummies')
+    filter_col = [col for col in to_add
+                  if col.startswith(name_of_col + "_")]
+    to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
+                    filter_col]
+
+    return to_add
+
+
+def merge_counts_variables(df, source_df, list_of_vars):
+    '''
+    Takes a dataframe and a list of variables to merge and merges the counts
+    variables above with the master dataframe.
+
+    Inputs:
+        df: master dataframe to merge on
+
+    Returns:
+        merged dataframe with counts variables
+    '''
+
+    doc_ids_to_keep = df['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
+    subset_df = source_df.loc[source_df['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
+
+    for var in list_of_vars:
+        print('\t\t\ton var ', var)
+        to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
+        df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                              'COMMITMENT_PREFIX'], how='left')
+        print('\t\t\tdid merge for var', var)
+
+    return df
+
+
 def discretize(df, vars_to_discretize, num_bins=10):
     '''
     This function takes a dataframe and a list of variables
@@ -92,7 +146,7 @@ def impute_by(df, col, by='median'):
     else:
         df[col].fillna(df[col].mean(), inplace=True)
 
-def pre_process(train, test, categorical_list, continuous_impute_list, vars_to_drop):
+def pre_process(train, test, categorical_list, continuous_impute_list, vars_to_drop, source_of_count_vars, counts_vars):
     '''
     This function takes a training set and a testing set and pre-processes columns in the dataset,
     to prepare them for the machine learning pipeline.
@@ -117,6 +171,8 @@ def pre_process(train, test, categorical_list, continuous_impute_list, vars_to_d
     processed_test.drop(vars_to_drop, axis=1, inplace=True)
     final_processed_train = categorize(processed_train, categorical_list)
     final_processed_test = categorize(processed_test, categorical_list)
+    final_processed_train = merge_counts_variables(final_processed_train, source_of_count_vars, counts_vars)
+    final_processed_test = merge_counts_variables(final_processed_test, source_of_count_vars, counts_vars)
     for col in final_processed_train:
         if col in continuous_impute_list:
             impute_by(final_processed_train, col)
@@ -257,7 +313,7 @@ def temporal_dates(start_time, end_time, prediction_windows, grace_period=None):
                 train_start_time = start_time_date
                 train_end_time = train_start_time + windows * relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
                 test_start_time = train_end_time + relativedelta(days=+1) + relativedelta(days=+grace_period+1)
-                test_end_time = test_start_time  + relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
+                test_end_time = test_start_time + relativedelta(months=+prediction_window) - relativedelta(days=+1) - relativedelta(days=+grace_period+1)
                 temp_dates.append([train_start_time,train_end_time,test_start_time,test_end_time,prediction_window])
                 windows += 1
             else:
@@ -345,9 +401,9 @@ def evaluation_metrics(k_list, y_test_sorted, y_pred_probs_sorted):
 
 
 def run_models(models_to_run, classifiers, parameters, df, selected_y,
-               temp_split, time_var, categorical_list, to_dummy_list,
+               temp_split, time_var, categorical_list,
                continuous_impute_list, vars_to_drop, vars_to_drop_dates,
-               k_list, outfile, export_data=False):
+               k_list, outfile, source_of_count_vars, counts_vars, export_data=False):
     '''
     Adapted from Rayid's magic loops repository.
     This function loops through all the models and classifiers and produces a grid with evaluation metrics at 1%, 2%, 5%, 10%, 20%, 30%, and 50% of the population.
@@ -388,7 +444,10 @@ def run_models(models_to_run, classifiers, parameters, df, selected_y,
         i += 1
         train_start, train_end, test_start, test_end = timeframe[0], timeframe[1], timeframe[2], timeframe[3]
         x_train, x_test, y_train, y_test = temporal_split(df, time_var, selected_y, train_start, train_end, test_start, test_end, vars_to_drop_dates)
-        x_train, x_test, features = pre_process(x_train, x_test, categorical_list, to_dummy_list, continuous_impute_list, vars_to_drop)
+        x_train, x_test, features = pre_process(x_train, x_test,
+                                                categorical_list,
+                                                continuous_impute_list, vars_to_drop,
+                                                source_of_count_vars, counts_vars)
         x_train = x_train[features]
         x_test = x_test[features]
         for index, classifier in enumerate([classifiers[x] for x in models_to_run]):

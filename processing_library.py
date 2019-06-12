@@ -277,6 +277,7 @@ def df_w_age_at_first_incarceration(input_df):
                                     ).reset_index()
     return input_df.merge(df_grouped, on='OFFENDER_NC_DOC_ID_NUMBER', how='left')
 
+
 def create_number_prev_incarcerations(df):
     '''
     Creates feature for number of previous incarcerations
@@ -301,59 +302,4 @@ def create_number_prev_incarcerations(df):
             num_previous_incar = 0
 
     return df
-
-
-def make_count_vars_to_merge_onto_master_df(data, name_of_col):
-    '''
-    Takes a source dataframe and a column name and returns a dataframe
-    that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
-    along with a count variable for the column of interest. Here we dummify
-    variables outside of the merged data that are attributes of a crime, and
-    need to be collapsed to the crime level to be added to the main dataset.
-    The rest of the dummy variables are created after doing the train, test splits.
-
-    Inputs:
-        pandas dataframe collapsed by crime
-
-    Returns:
-        pandas dataframe with select counts variables added
-    '''
-    to_add = pd.get_dummies(
-            data,
-            columns=[name_of_col]).groupby(
-            ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
-            as_index=False).sum()
-    print('\t\t\tgot dummies')
-    filter_col = [col for col in to_add
-                  if col.startswith(name_of_col + "_")]
-    to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
-                    filter_col]
-
-    return to_add
-
-
-def merge_counts_variables(df, list_of_vars):
-    '''
-    Takes a dataframe and a list of variables to merge and merges the counts
-    variables above with the master dataframe.
-
-    Inputs:
-        df: master dataframe to merge on
-
-    Returns:
-        merged dataframe with counts variables
-    '''
-
-    doc_ids_to_keep = df['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
-    subset_df = OFNT3CE1.loc[OFNT3CE1['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
-
-    for var in list_of_vars:
-        print('\t\t\ton var ', var)
-        to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
-        df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
-                                              'COMMITMENT_PREFIX'], how='left')
-        print('\t\t\tdid merge for var', var)
-
-    return df
-
-print('\tfunctions loaded\t', datetime.now())
+    

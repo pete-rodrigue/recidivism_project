@@ -64,7 +64,6 @@ def clean_offender_data(offender_filepath):
 
     return OFNT3CE1
 
-
 ################################################################################
                         # CLEAN AND READ  INMT4BB1
 ################################################################################
@@ -257,7 +256,7 @@ def create_recidvate_label(crime_w_release_date, recidviate_definition_in_days):
 
 
 ################################################################################
-# ADD FEATURES: age at first incarceration, dummy variables, mumber of previous incarcerations
+# ADD FEATURES: age at first incarceration, number of previous incarcerations
 ###############################################################################
 def df_w_age_at_first_incarceration(input_df):
     '''
@@ -302,4 +301,54 @@ def create_number_prev_incarcerations(df):
             num_previous_incar = 0
 
     return df
-    
+
+################################################################################
+# Functions to make dummies, specific to this dataset, used in ml_functions_library
+###############################################################################
+def make_count_vars_to_merge_onto_master_df(data, name_of_col):
+    '''
+    Takes a source dataframe and a column name and returns a dataframe
+    that just has the key identifying variables (DOC_ID and COMMITMENT_PREFIX),
+    along with a count variable for the column of interest. Here we dummify
+    variables outside of the merged data that are attributes of a crime, and
+    need to be collapsed to the crime level to be added to the main dataset.
+    The rest of the dummy variables are created after doing the train, test splits.
+
+    Inputs:
+        pandas dataframe collapsed by crime
+
+    Returns:
+        pandas dataframe with select counts variables added
+    '''
+    to_add = pd.get_dummies(
+            data,
+            columns=[name_of_col]).groupby(
+            ['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'],
+            as_index=False).sum()
+    filter_col = [col for col in to_add
+                  if col.startswith(name_of_col + "_")]
+    to_add = to_add[['OFFENDER_NC_DOC_ID_NUMBER', 'COMMITMENT_PREFIX'] +
+                    filter_col]
+
+    return to_add
+
+
+def merge_counts_variables(df, source_df, list_of_vars):
+    '''
+    Takes a dataframe and a list of variables to merge and merges the counts
+    variables above with the master dataframe.
+
+    Inputs:
+        df: master dataframe to merge on
+
+    Returns:
+        merged dataframe with counts variables
+    '''
+    doc_ids_to_keep = df['OFFENDER_NC_DOC_ID_NUMBER'].unique().tolist()
+    subset_df = source_df.loc[source_df['OFFENDER_NC_DOC_ID_NUMBER'].isin(doc_ids_to_keep),]
+
+    for var in list_of_vars:
+        to_add = make_count_vars_to_merge_onto_master_df(subset_df, var)
+        df = df.merge(to_add, on=['OFFENDER_NC_DOC_ID_NUMBER',
+                                              'COMMITMENT_PREFIX'], how='left')
+    return df

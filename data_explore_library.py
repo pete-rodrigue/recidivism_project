@@ -1,5 +1,6 @@
 '''
-Data exploration library
+Vedika Ahuja, Bhargavi Ganesh, and Pete Rodrigue
+Library of functions used for data exploration.
 '''
 import os
 import pandas as pd
@@ -115,6 +116,7 @@ def correlation_matrix(correlations):
     ax.set_xticklabels(names, rotation=30, rotation_mode='anchor', ha='left')
     ax.set_yticklabels(names)
     plt.show()
+    plt.savefig('output/plots/corr_matrix.png')
 
 def pairplot(df, vars_to_describe):
     '''
@@ -171,3 +173,14 @@ def identify_ol(df, vars_to_describe=None):
     (subset_df > (Q3 + 1.5 * IQR))).any(axis=1)]
 
     return df_out
+
+def col_aggregation(df, col_to_group):
+    '''
+    This function takes in a dataframe, a string for a column name to group by,
+    and a name for the new index, and returns a summary table of values sorted
+    by percent.
+    '''
+    summary_table = df.groupby(col_to_group).size().reset_index(name='count')
+    summary_table['percent'] = summary_table['count']/len(df)
+
+    return summary_table.sort_values(by='percent', ascending=False)

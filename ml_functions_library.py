@@ -1,4 +1,6 @@
 '''
+Vedika Ahuja, Bhargavi Ganesh, Pete Rodrigue
+
 Functions used for ml pipeline
 '''
 import os
@@ -233,7 +235,7 @@ def plot_precision_recall_n(y_test, y_pred_scores, model_name):
     name = model_name
     plt.title(name)
     plt.show()
-    plt.savefig('plots/precision_recall.png')
+    plt.savefig('output/plots/precision_recall.png')
 
 def temporal_dates(start_time, end_time, prediction_windows, grace_period=None):
     '''

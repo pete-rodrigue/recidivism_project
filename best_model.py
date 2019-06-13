@@ -92,3 +92,5 @@ export_graphviz(
 dec_tree, feature_names =x_train.columns, class_names=None, rounded=True, filled=True, out_file="output/plots/tree.dot")
 graphviz.render('dot', 'png', "output/plots/tree.dot")
 graphviz.Source.from_file("output/plots/tree.dot")
+#export feature list
+pd.Series(x_test.columns).to_csv('output/feature_list.csv')

@@ -81,6 +81,7 @@ def histograms(df, vars_to_describe=None):
     plt.rcParams['figure.figsize'] = 16, 12
     df.hist()
     plt.show()
+    plt.savefig('output/histogram.png')
 
 def correlations(df, vars_to_describe=None):
     '''
@@ -150,6 +151,7 @@ def boxplots(df, vars_to_describe=None):
     layout=(5, math.ceil(len(df.columns)/5)),
     sharex=False, sharey=False)
     plt.show()
+    plt.savefig('output/plots/boxplot.png')
 
 def identify_ol(df, vars_to_describe=None):
     '''

@@ -1,10 +1,16 @@
-# recidivism_project
-North Carolina recidivism data
+# Predicting the Risk of Recidivism among people released from prison in North Carolina
+## Spring 2019
+### Vedika Ahuja, Pete Rodrigue, Bhargavi Ganesh
 
-This repository contains all the files used to generate the report on predicting recidivism in North Carolina. 
+## Paper
+Our final paper summarizing the results of our models and outlining the objective of the project is [here](https://github.com/vahuja92/recidivism_project/blob/master/Reducing%20Recidivism%20in%20North%20Carolina%20Report.pdf). 
 
-The files in the repository are as follows:
-- aequitas_analysis.py: This script runs the aequitas analysis
+## Data 
+- (North Carolina Deapartment of Public Safety Offender Public Information database)[https://webapps.doc.state.nc.us/opi/downloads.do?method=view]
+
+## Contents of Repository 
+
+- aequitas_analysis.py: This script runs the aequitas analysis on bias in our pipeline
 - best_model.py: This script takes the best model (as determined in run_pipeline.py) and creates a feature importances, precision/recall curve, and a decision tree stump
 - data_explore_library.py: This script contains functions for data exploration
 - data_explore_script.py: This script creates plots/tables in data exploration
